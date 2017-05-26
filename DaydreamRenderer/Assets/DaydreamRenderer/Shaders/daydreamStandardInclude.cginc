@@ -240,10 +240,11 @@ void computeLightSetLocal(int index, in float3 viewPos, in float3 nrm, in float3
 				spec += pow16(dot(light2Dir, R)) * specMask.z;
 				spec += pow16(dot(light3Dir, R)) * specMask.w;
 			#else
-				spec += powf(dot(light0Dir, R), specPower) * specMask.x;
-				spec += powf(dot(light1Dir, R), specPower) * specMask.y;
-				spec += powf(dot(light2Dir, R), specPower) * specMask.z;
-				spec += powf(dot(light3Dir, R), specPower) * specMask.w;
+                               // Compiler issue? When using multiple materials - max() prevents blackout
+                               spec += max(0.0001, powf(dot(light0Dir, R), specPower)) * specMask.x;
+                               spec += max(0.0001, powf(dot(light1Dir, R), specPower)) * specMask.y;
+                               spec += max(0.0001, powf(dot(light2Dir, R), specPower)) * specMask.z;
+                               spec += max(0.0001, powf(dot(light3Dir, R), specPower)) * specMask.w;
 			#endif
 		#endif
 	#endif
