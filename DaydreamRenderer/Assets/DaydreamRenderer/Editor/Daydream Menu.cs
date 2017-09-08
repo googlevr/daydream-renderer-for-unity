@@ -1,4 +1,4 @@
-﻿///////////////////////////////////////////////////////////////////////////////
+﻿﻿///////////////////////////////////////////////////////////////////////////////
 //Copyright 2017 Google Inc.
 //
 //Licensed under the Apache License, Version 2.0 (the "License");
@@ -28,6 +28,9 @@ public class DaydreamMenu : Editor
 {
     static private class Styles
     {
+        public const string kEnableEnlightenString = "Enable Unity Lighting";
+        public const string kEnableDaydreamString = "Enable Daydream Lighting";
+
         static public GUIContent m_shadowSettingsUI     = new GUIContent("Shadow Settings", "Adjust global shadow settings.");
         static public GUIContent m_shadowWidthUI        = new GUIContent("Width ", "Shadow map width in pixels.");
         static public GUIContent m_shadowHeightUI       = new GUIContent("Height", "Shadow map height in pixels.");
@@ -35,10 +38,10 @@ public class DaydreamMenu : Editor
         static public GUIContent m_maxShadowCastersUI   = new GUIContent("Shadow Count", "The maximum number of shadow casting objects.");
         static public GUIContent m_ambientSettingsUI    = new GUIContent("Dynamic Ambient Settings", "Adjust global ambient settings.");
         static public GUIContent m_ambientUpUI          = new GUIContent("Ambient Sky (up)  ", "Ambient color of normals pointing up (towards the 'sky') (+y).");
-        static public GUIContent m_ambientDownUI        = new GUIContent("Ambient Sky (up)  ", "Ambient color of normals pointing down (towards the 'ground') (-y).");
+        static public GUIContent m_ambientDownUI        = new GUIContent("Ambient Sky (down)  ", "Ambient color of normals pointing down (towards the 'ground') (-y).");
         static public GUIContent m_showFpsUI            = new GUIContent("Show FPS", "Enable to show average FPS and frame time.");
-        static public GUIContent m_convertMtlUI         = new GUIContent("Convert Materials to Daydream", "Convert Standard materials to Daydream materials.");
-        static public GUIContent m_enableEnlightenUI    = new GUIContent("Enable Enlighten", "Enable Enlighten support.");
+        static public GUIContent m_convertMtlUI         = new GUIContent("Open Material Wizard", "Convert Standard materials to Daydream materials.");
+        static public GUIContent m_enableEnlightenUI    = new GUIContent("Enable Unity Lighting", "Enable Unity Lighting support.");
         static public GUIContent m_enableDaydreamUI     = new GUIContent("Enable Daydream Lighting", "Enable Daydream Lighting support.");
 
         static public GUIContent m_fogSettingsUI        = new GUIContent("Fog settings", "Adjust the global fog settings.");
@@ -58,9 +61,14 @@ public class DaydreamMenu : Editor
         static public GUIContent m_fogColorFar          = new GUIContent("Far color",  "The color of the fog where the fog is thick.");
 
         static public GUIContent[] m_fogModes = new GUIContent[3] { null, null, null };
+        static public GUIContent[] m_lightingSystemUI;
         static public GUILayoutOption[] m_convertMtlLayout = new GUILayoutOption[] { GUILayout.Width(200) };
         static public GUILayoutOption[] m_enlightenLayout = new GUILayoutOption[] { GUILayout.Width(120) };
         static public GUILayoutOption[] m_drLightingLayout = new GUILayoutOption[] { GUILayout.Width(175) };
+
+        public static GUIStyle m_buttonUnselected = new GUIStyle(EditorStyles.toolbar);
+        public static GUIStyle m_buttonSelected = new GUIStyle(EditorStyles.toolbarButton);
+        public static GUIStyle m_sectionLabel;
 
         static private bool s_initialized = false;
 
@@ -77,6 +85,16 @@ public class DaydreamMenu : Editor
             }
 
             s_initialized = true;
+        }
+
+        static Styles()
+        {
+            m_buttonUnselected.alignment = m_buttonSelected.alignment;
+            m_buttonSelected.normal = m_buttonSelected.active;
+            m_lightingSystemUI = new GUIContent[] { Styles.m_enableDaydreamUI, Styles.m_enableEnlightenUI };
+            m_sectionLabel = new GUIStyle(GUI.skin.label);
+            m_sectionLabel.fontSize = 12;
+            m_sectionLabel.contentOffset = new Vector2(0f, 2.5f);
         }
     }
         
@@ -118,19 +136,24 @@ public class DaydreamMenu : Editor
         //Since Unity does a binary comparison between the copied data and the original material - it should accurately determine if it has changed.
         //And since we're editing one material at a time, the extra memory (one extra copy of the Material) - the memory cost is reasonable.
         Undo.RecordObject(renderer, "Daydream Renderer Settings");
+        
+        DaydreamRendererImportManager.DrawDaydreamLightingToggle(renderer);
+        //DaydreamRendererImportManager.DrawSection(500, 1);
+        GUILayout.Space(5);
 
-        if (GUILayout.Button(Styles.m_convertMtlUI, Styles.m_convertMtlLayout))
+        // Material Conversion
+        DaydreamRendererImportManager.DrawSection(500, 1);
+        EditorGUILayout.LabelField(DaydreamRendererImportManager.Styles.kConversionWizardSegment, Styles.m_sectionLabel, GUILayout.Height(25));
+        EditorGUILayout.BeginHorizontal();
+        GUILayout.Space(20);
+        EditorGUILayout.BeginVertical();
+        if (GUILayout.Button(DaydreamRendererImportManager.Styles.kOpenMaterialWizard, EditorStyles.toolbar))
         {
-            StandardToDaydream();
+            MaterialConversionDialog.ShowDialog(null);
         }
-        if (GUILayout.Button(Styles.m_enableEnlightenUI, Styles.m_enlightenLayout))
-        {
-            renderer.EnableEnlighten(true);
-        }
-        if (GUILayout.Button(Styles.m_enableDaydreamUI, Styles.m_drLightingLayout))
-        {
-            renderer.EnableEnlighten(false);
-        }
+        EditorGUILayout.EndVertical();
+        EditorGUILayout.EndHorizontal();
+        GUILayout.Space(5);
 
         renderer.m_shadowSettings = EditorGUILayout.Foldout(renderer.m_shadowSettings, Styles.m_shadowSettingsUI);
         if (renderer.m_shadowSettings)
@@ -232,6 +255,32 @@ public class DaydreamMenu : Editor
         UnityEditor.AssetDatabase.Refresh();
     }
 
+    public static bool IsConvertible(Shader shader)
+    {
+        string name = shader.name;
+
+        if (name.Equals("Standard") || name.Equals("Standard (Specular setup)") || name.Equals("Legacy Shaders/Bumped Diffuse") || name.Equals("Legacy Shaders/Transparent/Diffuse")
+            || name.Equals("Legacy Shaders/Self-Illumin/Specular")
+            || name.Equals("Reflective/Diffuse Transperant")
+            || name.Equals("Reflective/Diffuse Reflection Spec Transp")
+            || name.Equals("Legacy Shaders/Bumped Specular")
+            || name.Equals("Legacy Shaders/Bumped/Specular")
+            || name.Equals("Legacy Shaders/Reflective/Specular")
+            || name.Equals("Legacy Shaders/Reflective/Bumped Specular")
+            || name.Equals("Mobile/Bumped Diffuse") || name.Equals("Mobile/Bumped Specular") || name.Equals("Mobile/Bumped Specular (1 Directional Light)")
+            || name.Equals("Mobile/Bumped Diffuse") || name.Equals("Mobile/Bumped Specular") || name.Equals("Mobile/Bumped Specular (1 Directional Light)")
+            || name.Equals("Mobile/Diffuse") || name.Equals("Mobile/VertexLit") || name.Equals("Mobile/VertexLit (Only Directional Lights)")
+            || name.Equals("Unlit/Color") || name.Equals("Unlit/Texture") || name.Equals("Unlit/Transparent") || name.Equals("Unlit/Transparent Cutout") || name.Equals("Mobile/Unlit (Supports Lightmap)")
+            || name.Equals("Mobile/Particles/Additive") || name.Equals("Mobile/Particles/Alpha Blended") || name.Equals("Mobile/Particles/Multiply") || name.Equals("Mobile/Particles/VertexLit Blended")
+            || name.Equals("Particles/Additive") || name.Equals("Particles/Additive (Soft)") || name.Equals("Particles/Alpha Blended") || name.Equals("Particles/Alpha Blended Premultiply")
+            || name.Equals("Particles/Multiply") || name.Equals("Particles/VertexLit Blended"))
+        {
+            return true;
+        }
+
+        return false;
+    }
+
     public static bool StandardToDaydreamSingleMaterial(Material m, Shader srcShader, Shader dstShader)
     {
         bool materialModified = false;
@@ -244,16 +293,25 @@ public class DaydreamMenu : Editor
         }
         else if (name.Equals("Standard") || name.Equals("Standard (Specular setup)") || name.Equals("Legacy Shaders/Bumped Diffuse") || name.Equals("Legacy Shaders/Transparent/Diffuse"))
         {
-            Color baseColor = m.GetColor("_Color");
+			Texture albedoMap = m.GetTexture("_MainTex");
+			Color baseColor = m.GetColor("_Color");
             Texture normalMap = m.GetTexture("_BumpMap");
             float smoothness = m.GetFloat("_Glossiness");
             float specular = m.GetFloat("_SpecularHighlights");
             float renderMode = m.GetFloat("_Mode");
-            Color emissionClr = m.GetColor("_EmissionColor");
+			Color emissionClr = m.GetColor("_EmissionColor");
+			Texture emissionMap = m.GetTexture("_EmissionMap");
 
             float emissive = Mathf.Max(emissionClr.r, Mathf.Max(emissionClr.g, emissionClr.b));
 
             m.shader = dstShader;
+
+            // in case emission texture is used in place of main texture
+            if(albedoMap == null && emissionMap != null)
+            {
+                m.SetTexture("_MainTex", emissionMap);
+            }
+
             //copy over parameters.
             m.SetColor("_BaseColor", baseColor);
             m.SetTexture("_NormalTex", normalMap);

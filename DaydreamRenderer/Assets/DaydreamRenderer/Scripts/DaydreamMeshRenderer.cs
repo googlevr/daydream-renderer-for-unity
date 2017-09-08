@@ -32,14 +32,14 @@ namespace daydreamrenderer
     {
         const int kMaxActiveLights = 8;
         const int kUpdateWindow = 80;
-
+        
         // setting this flag to false causes meshes to stop processing lights
         public static bool s_ignoreLights = false;
         public static bool s_startup = true;
 
         // the 'isStatic' flag on any gameObject is 'editor only' this flag tracks its state and serializes it for use on device
-        [HideInInspector]
         public bool m_static = false;
+        public string m_staticState = "";
 
         [System.NonSerialized]
         public bool m_didInit = false;
@@ -207,10 +207,12 @@ namespace daydreamrenderer
         {
             m_didInit = true;
             UpdateEnabled();
+
 #if UNITY_EDITOR
             if (enabled)
             {
                 m_static = gameObject.isStatic;
+                EditorUtility.SetDirty(this);
             }
 #endif
 

@@ -32,12 +32,18 @@ namespace daydreamrenderer
         public bool m_showSamplePatch = false;
         public bool m_showNormals = false;
         public bool m_showBVH = false;
+        public bool m_showTessTriangles = false;
         public int m_indexOffset = 0;
+        public bool m_showFace = false;
         [System.NonSerialized]
         public int m_lastVertexSampleIndex = -1;
+        [System.NonSerialized]
+        public int[] m_triangles;
         [System.NonSerialized]
         public Vector3[] m_worldVerPos;
         [System.NonSerialized]
         public Vector3[] m_worldNormals;
+        [System.NonSerialized]
+        public int[] m_tessFaces;
     }
 }

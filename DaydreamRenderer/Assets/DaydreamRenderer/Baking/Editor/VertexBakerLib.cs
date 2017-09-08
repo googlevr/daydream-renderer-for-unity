@@ -41,7 +41,7 @@ namespace daydreamrenderer
 #if UNITY_EDITOR_OSX
         public const string LIBNAME = "daydreambaker";
 #else
-        public const string LIBNAME = "Assets\\Plugins\\DaydreamRenderer\\x86_64\\daydreambaker\\daydreambaker.dll";
+        public const string LIBNAME = "Assets\\DaydreamRenderer\\Plugins\\x86_64\\daydreambaker\\daydreambaker.dll";
 #endif
 
         static public readonly string m_settingsFileName = "bakesettings";
@@ -49,7 +49,16 @@ namespace daydreamrenderer
 
         static readonly int SIZE_INT = Marshal.SizeOf(typeof(int));
         static readonly int SIZE_FLOAT = Marshal.SizeOf(typeof(float));
-        
+
+        public static class Err
+        {
+            public const int kBVHCacheNotFound = 1;
+            public const int kMeshCacheNotFound = 2;
+            public const int kMeshCacheErrDeserializing = 4;
+            public const int kBuildBVHSceneBVHFileIOError = 8;
+            public const int kBuildBVHSceneMeshCacheFileIOError = 16;
+            public const int kInvalidHandle = 32;
+        };
 
         public static class Logging
         {
@@ -210,6 +219,18 @@ namespace daydreamrenderer
 
         public delegate void BakeProgressUpdate(IntPtr data);
 
+        public override bool LoadLib()
+        {
+            // clean up old location
+            DirectoryInfo di = new DirectoryInfo("Assets/Plugins/DaydreamRenderer");
+            if (di.Exists)
+            {
+                di.Delete(true);
+            }
+
+            return base.LoadLib();
+        }
+
         #region _MemoryCopy
 #if DDR_RUNTIME_DLL_LINKING_
     private delegate
@@ -222,7 +243,7 @@ namespace daydreamrenderer
         public int MemoryCopy(IntPtr dest, int destSize, IntPtr src, int byteCount)
         {
 #if DDR_RUNTIME_DLL_LINKING_
-        int errno = Invoke<int, _MemoryCopy>(dest, destSize, src, byteCount);
+            int errno = Invoke<int, _MemoryCopy>(dest, destSize, src, byteCount);
 #else
             int errno = _MemoryCopy(dest, destSize, src, byteCount);
 #endif
@@ -245,7 +266,7 @@ namespace daydreamrenderer
         public int CopyArray(IntPtr dest, int destSize, int[] src, int byteCount)
         {
 #if DDR_RUNTIME_DLL_LINKING_
-        int errno = Invoke<int, _CopyArray>(dest, destSize, src, byteCount);
+            int errno = Invoke<int, _CopyArray>(dest, destSize, src, byteCount);
 #else
             int errno = _CopyArray(dest, destSize, src, byteCount);
 #endif
@@ -268,7 +289,7 @@ namespace daydreamrenderer
         public int CopyUIntArray(IntPtr dest, int destSize, uint[] src, int byteCount)
         {
 #if DDR_RUNTIME_DLL_LINKING_
-        int errno = Invoke<int, _CopyUIntArray>(dest, destSize, src, byteCount);
+            int errno = Invoke<int, _CopyUIntArray>(dest, destSize, src, byteCount);
 #else
             int errno = _CopyUIntArray(dest, destSize, src, byteCount);
 #endif
@@ -293,7 +314,7 @@ namespace daydreamrenderer
         public int CopyFloatArray(IntPtr dest, int destSize, float[] src, int byteCount)
         {
 #if DDR_RUNTIME_DLL_LINKING_
-        int errno = Invoke<int, _CopyFloatArray>(dest, destSize, src, byteCount);
+            int errno = Invoke<int, _CopyFloatArray>(dest, destSize, src, byteCount);
 #else
             int errno = _CopyFloatArray(dest, destSize, src, byteCount);
 #endif
@@ -316,7 +337,7 @@ namespace daydreamrenderer
         public int CopyVector2Array(IntPtr dest, int destSize, Vector2[] src, int byteCount)
         {
 #if DDR_RUNTIME_DLL_LINKING_
-        int errno = Invoke<int, _CopyVector2Array>(dest, destSize, src, byteCount);
+            int errno = Invoke<int, _CopyVector2Array>(dest, destSize, src, byteCount);
 #else
             int errno = _CopyVector2Array(dest, destSize, src, byteCount);
 #endif
@@ -339,7 +360,7 @@ namespace daydreamrenderer
         public int CopyVector3Array(IntPtr dest, int destSize, Vector3[] src, int byteCount)
         {
 #if DDR_RUNTIME_DLL_LINKING_
-        int errno = Invoke<int, _CopyVector3Array>(dest, destSize, src, byteCount);
+            int errno = Invoke<int, _CopyVector3Array>(dest, destSize, src, byteCount);
 #else
             int errno = _CopyVector3Array(dest, destSize, src, byteCount);
 #endif
@@ -362,7 +383,7 @@ namespace daydreamrenderer
         public int CopyVector4Array(IntPtr dest, int destSize, Vector4[] src, int byteCount)
         {
 #if DDR_RUNTIME_DLL_LINKING_
-        int errno = Invoke<int, _CopyVector4Array>(dest, destSize, src, byteCount);
+            int errno = Invoke<int, _CopyVector4Array>(dest, destSize, src, byteCount);
 #else
             int errno = _CopyVector4Array(dest, destSize, src, byteCount);
 #endif
@@ -385,7 +406,7 @@ namespace daydreamrenderer
         public int CopyColorArray(IntPtr dest, int destSize, Color[] src, int byteCount)
         {
 #if DDR_RUNTIME_DLL_LINKING_
-        int errno = Invoke<int, _CopyColorArray>(dest, destSize, src, byteCount);
+            int errno = Invoke<int, _CopyColorArray>(dest, destSize, src, byteCount);
 #else
             int errno = _CopyColorArray(dest, destSize, src, byteCount);
 #endif
@@ -409,7 +430,7 @@ namespace daydreamrenderer
         public int CopyVector4(IntPtr dest, int destSize, Vector4 src, int byteCount)
         {
 #if DDR_RUNTIME_DLL_LINKING_
-        int errno = Invoke<int, _CopyVector4>(dest, destSize, src, byteCount);
+            int errno = Invoke<int, _CopyVector4>(dest, destSize, src, byteCount);
 #else
             int errno = _CopyVector4(dest, destSize, ref src, byteCount);
 #endif
@@ -434,7 +455,7 @@ namespace daydreamrenderer
         public IntPtr Alloc(int size)
         {
 #if DDR_RUNTIME_DLL_LINKING_
-        IntPtr ptr = Invoke<IntPtr, _Alloc>(size);
+            IntPtr ptr = Invoke<IntPtr, _Alloc>(size);
 #else
             IntPtr ptr = _Alloc(size);
 #endif
@@ -458,7 +479,7 @@ namespace daydreamrenderer
         public void Free(IntPtr ptr)
         {
 #if DDR_RUNTIME_DLL_LINKING_
-        Invoke<_Free>(ptr);
+            Invoke<_Free>(ptr);
 #else
             _Free(ptr);
 #endif
@@ -478,7 +499,7 @@ namespace daydreamrenderer
         public void FreeHandle(IntPtr handle)
         {
 #if DDR_RUNTIME_DLL_LINKING_
-        Invoke<_FreeHandle>(handle);
+            Invoke<_FreeHandle>(handle);
 #else
             _FreeHandle(handle);
 #endif
@@ -497,7 +518,7 @@ namespace daydreamrenderer
         public bool ValidHandle(IntPtr handle)
         {
 #if DDR_RUNTIME_DLL_LINKING_
-        return Invoke<int, _ValidHandle>(handle) == 1;
+            return Invoke<int, _ValidHandle>(handle) == 1;
 #else
             return _ValidHandle(handle) == 1;
 #endif
@@ -510,20 +531,38 @@ namespace daydreamrenderer
         [DllImport(LIBNAME)]
         private static extern
 #endif
-    IntPtr _GetLastError();
+        IntPtr _GetLastError();
         #endregion
         public string GetLastError()
         {
 #if DDR_RUNTIME_DLL_LINKING_
-        return Marshal.PtrToStringAnsi(Invoke<IntPtr, _GetLastError>());
+            return Marshal.PtrToStringAnsi(Invoke<IntPtr, _GetLastError>());
 #else
             return Marshal.PtrToStringAnsi(_GetLastError());
 #endif
         }
 
+        #region _GetLastInfo
+#if DDR_RUNTIME_DLL_LINKING_
+        private delegate
+#else
+        [DllImport(LIBNAME)]
+        private static extern
+#endif
+        IntPtr _GetLastInfo();
+        #endregion
+        public string GetLastInfo()
+        {
+#if DDR_RUNTIME_DLL_LINKING_
+            return Marshal.PtrToStringAnsi(Invoke<IntPtr, _GetLastInfo>());
+#else
+            return Marshal.PtrToStringAnsi(_GetLastInfo());
+#endif
+        }
+
         #region _Triangle2LineSegmentIntersection
 #if DDR_RUNTIME_DLL_LINKING_
-    private delegate
+        private delegate
 #else
         [DllImport(LIBNAME)]
         private static extern
@@ -533,7 +572,7 @@ namespace daydreamrenderer
         public bool Triangle2LineSegment(Vector3 a, Vector3 b, Vector3 c, Vector3 startPoint, Vector3 endPoint, bool colBkFace)
         {
 #if DDR_RUNTIME_DLL_LINKING_
-        return Invoke<bool, _Triangle2LineSegmentIntersection>(a, b, c, startPoint, endPoint, colBkFace);
+            return Invoke<bool, _Triangle2LineSegmentIntersection>(a, b, c, startPoint, endPoint, colBkFace);
 #else
             return _Triangle2LineSegmentIntersection(ref a, ref b, ref c, ref startPoint, ref endPoint, colBkFace);
 #endif
@@ -552,7 +591,7 @@ namespace daydreamrenderer
         {
             Vector3[] outColPoint = new Vector3[1];
 #if DDR_RUNTIME_DLL_LINKING_
-        bool result = Invoke<bool, _Triangle2LineSegmentColPoint>(a, b, c, startPoint, endPoint, colBkFace, outColPoint);
+            bool result = Invoke<bool, _Triangle2LineSegmentColPoint>(a, b, c, startPoint, endPoint, colBkFace, outColPoint);
 #else
             bool result = _Triangle2LineSegmentColPoint(ref a, ref b, ref c, ref startPoint, ref endPoint, colBkFace, outColPoint);
 #endif
@@ -575,32 +614,51 @@ namespace daydreamrenderer
         public int GetErrorCount()
         {
 #if DDR_RUNTIME_DLL_LINKING_
-        return Invoke<int, _GetErrorCount>();
+            return Invoke<int, _GetErrorCount>();
 #else
             return _GetErrorCount();
 #endif
         }
 
-        public BakeContext m_baker = new BakeContext();
+        #region _GetInfoCount
+#if DDR_RUNTIME_DLL_LINKING_
+        private delegate
+#else
+        [DllImport(LIBNAME)]
+        private static extern
+#endif
+        int _GetInfoCount();
+        #endregion
+        public int GetInfoCount()
+        {
+#if DDR_RUNTIME_DLL_LINKING_
+            return Invoke<int, _GetInfoCount>();
+#else
+            return _GetInfoCount();
+#endif
+        }
+
+        public BakeContext m_bakerUtilityContext = new BakeContext();
+        public BakeContext m_bakerContext = new BakeContext();
 
         public bool BakeInProgress()
         {
-            return m_baker.m_run;
+            return m_bakerContext.m_run;
         }
 
         public bool BakeReset()
         {
-            return m_baker.m_cancel = false;
+            return m_bakerContext.m_cancel = false;
         }
 
         public void Bake(List<MeshFilter> meshes, List<Light> lights, System.Action onFinished)
         {
-            m_baker.Bake(meshes, lights, onFinished);
+            m_bakerContext.Bake(meshes, lights, onFinished);
         }
 
         public int BakeFinish(BakeContext.OnFinishedUpdate onUpdate)
         {
-            return m_baker.BakeFinish(onUpdate);
+            return m_bakerContext.BakeFinish(onUpdate);
         }
 
         #region _BakeProgress
@@ -615,7 +673,7 @@ namespace daydreamrenderer
         public float BakeProgress()
         {
 #if DDR_RUNTIME_DLL_LINKING_
-        return Invoke<float, _BakeProgress>();
+            return Invoke<float, _BakeProgress>();
 #else
             return _BakeProgress(); ;
 #endif
@@ -632,9 +690,9 @@ namespace daydreamrenderer
         #endregion
         public void BakeCancel()
         {
-            m_baker.m_cancel = true;
+            m_bakerContext.m_cancel = true;
 #if DDR_RUNTIME_DLL_LINKING_
-        Invoke<_BakeCancel>();
+            Invoke<_BakeCancel>();
 #else
             _BakeCancel(); ;
 #endif
@@ -642,41 +700,41 @@ namespace daydreamrenderer
 
         #region _BuildBVH
 #if DDR_RUNTIME_DLL_LINKING_
-    private delegate
+        private delegate
 #else
         [DllImport(LIBNAME)]
         private static extern
 #endif
-    IntPtr _BuildBVH(IntPtr meshIds, IntPtr vertexCounts, IntPtr triangleCountPtr, IntPtr matData
+        int _BuildBVH(IntPtr meshIds, IntPtr vertexCounts, IntPtr triangleCountPtr, IntPtr matData
             , IntPtr mesh, IntPtr triangles, IntPtr bakeOptions, IntPtr layers, int meshCount, [In] string[] guids
             , [In] string[] sourcePaths, IntPtr settingsIndices, IntPtr[] settings, [In, Out] IntPtr[] outBVHHandle);
         #endregion
 
-        public string BuildBVH(MeshFilter[] meshes)
+        public bool BuildBVH(MeshFilter[] meshes)
         {
             BVHHandle[] handles = null;
-            string ret = BuildBVH(meshes, ref handles);
+            bool ret = BuildBVH(meshes, ref handles);
             for (int i = 0; i < handles.Length; ++i)
             {
                 FreeHandle(handles[i].Ptr());
             }
             return ret;
         }
-        public string BuildBVH(MeshFilter[] meshes, ref BVHHandle[] bvhHandles)
-        {
 
-            m_baker.m_guids = new string[meshes.Length];
-            m_baker.m_sourcePaths = new string[meshes.Length];
-            m_baker.m_meshRenderers = new MeshRenderer[meshes.Length];
+        public bool BuildBVH(MeshFilter[] meshes, ref BVHHandle[] bvhHandles)
+        {
+            m_bakerUtilityContext.m_guids = new string[meshes.Length];
+            m_bakerUtilityContext.m_sourcePaths = new string[meshes.Length];
+            m_bakerUtilityContext.m_meshRenderers = new MeshRenderer[meshes.Length];
             for (int i = 0; i < meshes.Length; ++i)
             {
-                m_baker.m_sourcePaths[i] = AssetDatabase.GetAssetPath(meshes[i].sharedMesh);
-                m_baker.m_guids[i] = "" + meshes[i].GetUniqueId();
-                m_baker.m_meshRenderers[i] = meshes[i].GetComponent<MeshRenderer>();
+                m_bakerUtilityContext.m_sourcePaths[i] = AssetDatabase.GetAssetPath(meshes[i].sharedMesh);
+                m_bakerUtilityContext.m_guids[i] = "" + meshes[i].GetUniqueId();
+                m_bakerUtilityContext.m_meshRenderers[i] = meshes[i].GetComponent<MeshRenderer>();
             }
-            m_baker.m_meshCount = meshes.Length;
+            m_bakerUtilityContext.m_meshCount = meshes.Length;
 
-            BakeContext.BuildSceneContext(meshes, m_baker);
+            BakeContext.BuildSceneContext(meshes, m_bakerUtilityContext, new BakeContext.DefaultVertex());
 
             IntPtr[] handles = new IntPtr[meshes.Length];
             for (int i = 0; i < handles.Length; ++i)
@@ -684,15 +742,15 @@ namespace daydreamrenderer
                 handles[i] = IntPtr.Zero;
             }
 #if DDR_RUNTIME_DLL_LINKING_
-        string msg = Marshal.PtrToStringAnsi(Invoke<IntPtr, _BuildBVH>(m_baker.m_meshIdsPtr, m_baker.m_vertexCountsPtr, m_baker.m_triangleCountPtr, m_baker.m_matDataPtr
-            , m_baker.m_meshDataPtr, m_baker.m_triangleDataPtr, m_baker.m_bakeOptionsPtr, m_baker.m_layerPtr, m_baker.m_meshCount
-            , m_baker.m_guids, m_baker.m_sourcePaths, m_baker.m_settingsIndicesPtr, m_baker.m_settingsPtrs, handles));
+            int errCount = Invoke<int, _BuildBVH>(m_bakerUtilityContext.m_meshIdsPtr, m_bakerUtilityContext.m_vertexCountsPtr, m_bakerUtilityContext.m_triangleCountPtr, m_bakerUtilityContext.m_matDataPtr
+            , m_bakerUtilityContext.m_meshDataPtr, m_bakerUtilityContext.m_triangleDataPtr, m_bakerUtilityContext.m_bakeOptionsPtr, m_bakerUtilityContext.m_layerPtr, m_bakerUtilityContext.m_meshCount
+            , m_bakerUtilityContext.m_guids, m_bakerUtilityContext.m_sourcePaths, m_bakerUtilityContext.m_settingsIndicesPtr, m_bakerUtilityContext.m_settingsPtrs, handles);
 #else
-            string msg = Marshal.PtrToStringAnsi(_BuildBVH(m_baker.m_meshIdsPtr, m_baker.m_vertexCountsPtr, m_baker.m_triangleCountPtr, m_baker.m_matDataPtr
-                , m_baker.m_meshDataPtr, m_baker.m_triangleDataPtr, m_baker.m_bakeOptionsPtr, m_baker.m_layerPtr, m_baker.m_meshCount
-                , m_baker.m_guids, m_baker.m_sourcePaths, m_baker.m_settingsIndicesPtr, m_baker.m_settingsPtrs, handles));
+            int errCount = _BuildBVH(m_bakerUtilityContext.m_meshIdsPtr, m_bakerUtilityContext.m_vertexCountsPtr, m_bakerUtilityContext.m_triangleCountPtr, m_bakerUtilityContext.m_matDataPtr
+                , m_bakerUtilityContext.m_meshDataPtr, m_bakerUtilityContext.m_triangleDataPtr, m_bakerUtilityContext.m_bakeOptionsPtr, m_bakerUtilityContext.m_layerPtr, m_bakerUtilityContext.m_meshCount
+                , m_bakerUtilityContext.m_guids, m_bakerUtilityContext.m_sourcePaths, m_bakerUtilityContext.m_settingsIndicesPtr, m_bakerUtilityContext.m_settingsPtrs, handles);
 #endif
-            m_baker.FreeContext();
+            m_bakerUtilityContext.FreeContext();
 
             // output specialized handle
             bvhHandles = new BVHHandle[handles.Length];
@@ -701,7 +759,23 @@ namespace daydreamrenderer
                 bvhHandles[i] = new BVHHandle(meshes[i], handles[i], this);
             }
 
-            return msg;
+
+            bool result = true;
+            while (GetInfoCount() > 0)
+            {
+                string info = GetLastInfo();
+                VertexBakerLib.Log(info);
+            }
+
+            while (errCount > 0 && GetErrorCount() > 0)
+            {
+                // failed to load for expected reasons
+                result = false;
+                string info = GetLastError();
+                VertexBakerLib.Log(info);
+            }
+            
+            return result;
         }
 
         #region _RebuildBVH
@@ -715,33 +789,42 @@ namespace daydreamrenderer
             , IntPtr mesh, IntPtr triangles, IntPtr bakeOptions, IntPtr layers, int meshCount, [In] string[] guids, [In] string[] sourcePaths);
         #endregion
 
-        public int RebuildBVH(BVHHandle bvhHandle)
+        public bool RebuildBVH(BVHHandle bvhHandle)
         {
             // build baker context
-            m_baker.m_sourcePaths = new string[] { AssetDatabase.GetAssetPath(bvhHandle.SourceMeshData.sharedMesh) };
-            m_baker.m_guids = new string[] { "" + m_baker.m_meshes[0].GetUniqueId() };
-            m_baker.m_meshRenderers = new MeshRenderer[] { bvhHandle.SourceMeshData.GetComponent<MeshRenderer>() };
+            m_bakerUtilityContext.m_sourcePaths = new string[] { AssetDatabase.GetAssetPath(bvhHandle.SourceMeshData.sharedMesh) };
+            m_bakerUtilityContext.m_guids = new string[] { "" + m_bakerUtilityContext.m_meshes[0].GetUniqueId() };
+            m_bakerUtilityContext.m_meshRenderers = new MeshRenderer[] { bvhHandle.SourceMeshData.GetComponent<MeshRenderer>() };
 
             // parse data and fill in missing context
-            BakeContext.BuildSceneContext(new MeshFilter[] { bvhHandle.SourceMeshData }, m_baker);
+            BakeContext.BuildSceneContext(new MeshFilter[] { bvhHandle.SourceMeshData }, m_bakerUtilityContext, new BakeContext.DefaultVertex());
 
 #if DDR_RUNTIME_DLL_LINKING_
-        int err = Invoke<int, _RebuildBVH>(bvhHandle.Ptr(), m_baker.m_meshIdsPtr, m_baker.m_vertexCountsPtr, m_baker.m_triangleCountPtr
-            , m_baker.m_matDataPtr, m_baker.m_meshDataPtr, m_baker.m_triangleDataPtr, m_baker.m_bakeOptionsPtr, m_baker.m_layerPtr, 1, m_baker.m_guids, m_baker.m_sourcePaths);
+            int errCount = Invoke<int, _RebuildBVH>(bvhHandle.Ptr(), m_bakerUtilityContext.m_meshIdsPtr, m_bakerUtilityContext.m_vertexCountsPtr, m_bakerUtilityContext.m_triangleCountPtr
+            , m_bakerUtilityContext.m_matDataPtr, m_bakerUtilityContext.m_meshDataPtr, m_bakerUtilityContext.m_triangleDataPtr, m_bakerUtilityContext.m_bakeOptionsPtr, m_bakerUtilityContext.m_layerPtr, 1, m_bakerUtilityContext.m_guids, m_bakerUtilityContext.m_sourcePaths);
 #else
-            int err = _RebuildBVH(bvhHandle.Ptr(), m_baker.m_meshIdsPtr, m_baker.m_vertexCountsPtr, m_baker.m_triangleCountPtr
-                , m_baker.m_matDataPtr, m_baker.m_meshDataPtr, m_baker.m_triangleDataPtr, m_baker.m_bakeOptionsPtr, m_baker.m_layerPtr, 1, m_baker.m_guids, m_baker.m_sourcePaths);
+            int errCount = _RebuildBVH(bvhHandle.Ptr(), m_bakerUtilityContext.m_meshIdsPtr, m_bakerUtilityContext.m_vertexCountsPtr, m_bakerUtilityContext.m_triangleCountPtr
+                , m_bakerUtilityContext.m_matDataPtr, m_bakerUtilityContext.m_meshDataPtr, m_bakerUtilityContext.m_triangleDataPtr, m_bakerUtilityContext.m_bakeOptionsPtr, m_bakerUtilityContext.m_layerPtr, 1, m_bakerUtilityContext.m_guids, m_bakerUtilityContext.m_sourcePaths);
 #endif
 
-            m_baker.FreeContext();
+            m_bakerUtilityContext.FreeContext();
 
-            if (err != 0)
+            bool result = true;
+            while (GetInfoCount() > 0)
             {
-                string error = GetLastError();
-                VertexBakerLib.LogError(error);
+                string info = GetLastInfo();
+                VertexBakerLib.Log(info);
             }
 
-            return err;
+            while (errCount > 0 && GetErrorCount() > 0)
+            {
+                // failed to load for expected reasons
+                result = false;
+                string info = GetLastError();
+                VertexBakerLib.Log(info);
+            }
+
+            return result;
         }
 
 
@@ -781,18 +864,30 @@ namespace daydreamrenderer
         {
             IntPtr[] handle = new IntPtr[1];
 #if DDR_RUNTIME_DLL_LINKING_
-        int err = Invoke<int, _LoadBVH>(mesh.GetUniqueId(), handle);
+            int err = Invoke<int, _LoadBVH>(mesh.GetUniqueId(), handle);
 #else
             int err = _LoadBVH(mesh.GetUniqueId(), handle);
 #endif
             bvhHandle = new BVHHandle(mesh, handle[0], this);
-            if (err != 0)
+
+            bool result = true;
+            while (GetInfoCount() > 0)
             {
+                // failed to load for expected reasons
+                result = false;
+                string info = GetLastInfo();
+                VertexBakerLib.Log(info);
+            }
+
+            if ((err & Err.kMeshCacheErrDeserializing) > 0)
+            {
+                // failed to load for more serious reason
+                result = false;
                 string error = GetLastError();
                 VertexBakerLib.LogError(error);
-                return false;
             }
-            return true;
+
+            return result;
         }
 
         #region _IsValidBVH
@@ -996,6 +1091,35 @@ namespace daydreamrenderer
             return outIndex[0];
         }
 
+        #region _RayToTriangle
+#if DDR_RUNTIME_DLL_LINKING_
+        private delegate
+#else
+        [DllImport(LIBNAME)]
+        private static extern
+#endif
+        int _RayToTriangle(IntPtr bvhSceneHandle, float[] startPoint, float[] endPoint, [In, Out] int[] outFace);
+        #endregion
+
+        public int RayToTriangle(Handle bvhSceneHandle, Vector3 startPoint, Vector3 endPoint)
+        {
+
+            int[] outFace = new int[1];
+            outFace[0] = -1;
+#if DDR_RUNTIME_DLL_LINKING_
+            int err = Invoke<int, _RayToTriangle>(bvhSceneHandle.Ptr(), ToFloatArray(startPoint), ToFloatArray(endPoint), outFace);
+#else
+            int err = _RayToTriangle(bvhSceneHandle.Ptr(), ToFloatArray(startPoint), ToFloatArray(endPoint), outFace);
+#endif
+            if (err != 0)
+            {
+                string error = GetLastError();
+                VertexBakerLib.LogError(error);
+            }
+
+            return outFace[0];
+        }
+
         #region _TessellateTriangles
 #if DDR_RUNTIME_DLL_LINKING_
         private delegate
@@ -1003,54 +1127,50 @@ namespace daydreamrenderer
         [DllImport(LIBNAME)]
         private static extern
 #endif
-        bool _TessellateTriangles(IntPtr bvhhandle, IntPtr meshId, IntPtr vertexCount, IntPtr triangleCount, int elementCount, [In] BakeContext.VertexElement[] vertFormat
+        bool _TessellateTriangles(IntPtr bvhhandle, IntPtr meshId, IntPtr vertexCount, IntPtr triangleCount, int[] elementCount, [In] BakeContext.VertexElement[] vertFormat
                                 ,int[] targetFaces, int facesCount,  IntPtr mat, IntPtr meshData, IntPtr triangles, IntPtr bakeOptions
-                                , [In] string[] guid, [In] string[] sourcePaths, IntPtr[] settingsFB, [In, Out] IntPtr[] meshBufferHandle
-                                , [In, Out] IntPtr[] outVertData, [In, Out] int[] outVertCount, [In, Out] IntPtr[] outTriData, [In, Out] int[] outTriCount);
+                                , [In] string[] guid, [In] string[] sourcePaths, IntPtr[] settingsFB, [In, Out] IntPtr[] outVertData
+                                , [In, Out] int[] outVertCount, [In, Out] IntPtr[] outTriData, [In, Out] int[] outTriCount);
         #endregion
 
         public bool TessellateTriangles(BVHHandle bvhHandle, List<int> facesToTessellate)
         {
-
-            Mesh sourceMesh = bvhHandle.SourceMeshData.sharedMesh;
-
             List<MeshFilter> meshes = new List<MeshFilter>() { bvhHandle.SourceMeshData };
             List<List<int>> _subMeshTriangles = new List<List<int>>() { facesToTessellate };
 
-            IntPtr[] meshBufferData = new IntPtr[1];
             IntPtr[] outVertData = new IntPtr[1];
             int[] outVertCount = new int[1];
             IntPtr[] outTriData = new IntPtr[1];
             int[] outTriCount = new int[1];
-            meshBufferData[0] = IntPtr.Zero;
             outVertData[0] = IntPtr.Zero;
             outTriData[0] = IntPtr.Zero;
             outVertCount[0] = 0;
             outTriCount[0] = 0;
 
-            m_baker.InitBakeContext(meshes, null);
-                
-            BakeContext.IVertex vertexFormat = new BakeContext.DefaultVertex();
-            BakeContext.BuildSceneContext(meshes.ToArray(), m_baker, vertexFormat);
+            m_bakerUtilityContext.InitBakeContext(meshes, null);
+
+            // build vertex format that supports all vertex elements
+            List<BakeContext.IVertex> vertexFormats = BakeContext.DefaultVertex.BuildVertexFormats(meshes);
+
+            BakeContext.BuildSceneContext(meshes.ToArray(), null, null, m_bakerUtilityContext, vertexFormats);
 
 #if DDR_RUNTIME_DLL_LINKING_
             bool success = Invoke<bool, _TessellateTriangles>(
                 bvhHandle.Ptr()
-                , m_baker.m_meshIdsPtr
-                , m_baker.m_vertexCountsPtr
-                , m_baker.m_triangleCountPtr
-                , m_baker.m_vertexEementCount
-                , m_baker.m_vertexDefinition
+                , m_bakerUtilityContext.m_meshIdsPtr
+                , m_bakerUtilityContext.m_vertexCountsPtr
+                , m_bakerUtilityContext.m_triangleCountPtr
+                , m_bakerUtilityContext.m_vertexElementCount
+                , m_bakerUtilityContext.m_vertexDefinition
                 , _subMeshTriangles[0].ToArray()
                 , _subMeshTriangles[0].Count
-                , m_baker.m_matDataPtr
-                , m_baker.m_meshDataPtr
-                , m_baker.m_triangleDataPtr
-                , m_baker.m_bakeOptionsPtr
-                , m_baker.m_guids
-                , m_baker.m_sourcePaths
-                , m_baker.m_settingsPtrs
-                , meshBufferData
+                , m_bakerUtilityContext.m_matDataPtr
+                , m_bakerUtilityContext.m_meshDataPtr
+                , m_bakerUtilityContext.m_triangleDataPtr
+                , m_bakerUtilityContext.m_bakeOptionsPtr
+                , m_bakerUtilityContext.m_guids
+                , m_bakerUtilityContext.m_sourcePaths
+                , m_bakerUtilityContext.m_settingsPtrs
                 , outVertData
                 , outVertCount
                 , outTriData
@@ -1058,21 +1178,20 @@ namespace daydreamrenderer
 #else
             bool success = _TessellateTriangles(
                 bvhHandle.Ptr()
-                , m_baker.m_meshIdsPtr
-                , m_baker.m_vertexCountsPtr
-                , m_baker.m_triangleCountPtr
-                , m_baker.m_vertexEementCount
-                , m_baker.m_vertexDefinition
+                , m_bakerUtilityContext.m_meshIdsPtr
+                , m_bakerUtilityContext.m_vertexCountsPtr
+                , m_bakerUtilityContext.m_triangleCountPtr
+                , m_bakerUtilityContext.m_vertexElementCount
+                , m_bakerUtilityContext.m_vertexDefinition
                 , _subMeshTriangles[0].ToArray()
                 , _subMeshTriangles[0].Count
-                , m_baker.m_matDataPtr
-                , m_baker.m_meshDataPtr
-                , m_baker.m_triangleDataPtr
-                , m_baker.m_bakeOptionsPtr
-                , m_baker.m_guids
-                , m_baker.m_sourcePaths
-                , m_baker.m_settingsPtrs
-                , meshBufferData
+                , m_bakerUtilityContext.m_matDataPtr
+                , m_bakerUtilityContext.m_meshDataPtr
+                , m_bakerUtilityContext.m_triangleDataPtr
+                , m_bakerUtilityContext.m_bakeOptionsPtr
+                , m_bakerUtilityContext.m_guids
+                , m_bakerUtilityContext.m_sourcePaths
+                , m_bakerUtilityContext.m_settingsPtrs
                 , outVertData
                 , outVertCount
                 , outTriData
@@ -1085,84 +1204,117 @@ namespace daydreamrenderer
             }
 
             Mesh mesh = new Mesh();
+            
+            BakeContext.CreateMeshFromTessellationData(m_bakerUtilityContext, vertexFormats[0], outVertData[0], outVertCount[0], outTriData[0], outTriCount[0], ref mesh);
 
-            if (outVertCount[0] == 0 || outTriCount[0] == 0)
+            string sourceMeshName = meshes[0].GetComponent<DaydreamVertexLighting>().GetSourcMesh().name;
+
+            string bakeSetId = BakeData.Instance().GetBakeSettings().SelectedBakeSet.m_settingsId;
+            MeshContainer meshContainer = BakeData.Instance().GetMeshContainer(bakeSetId);
+
+            // tessellated mesh name
+            string tessellatedMeshName = bakeSetId + "_drtess_" + sourceMeshName;
+            // was source mesh tessellated
+            bool found = false;
+            Mesh outputSourceMesh = meshContainer.m_list.Find(delegate (Mesh m)
             {
-                Debug.LogError("Tessellation output data, vert count " + outVertCount[0] + " tri count " + outTriCount[0]);
-            }
-            else
-            {
-                float[] vertexData = IntPtrToFloatArray(outVertData[0], outVertCount[0] * vertexFormat.TotalComponentCount);
-                int[] triData = IntPtrToIntArray(outTriData[0], outTriCount[0]);
-
-                // rebuild mesh
-
-                List<Vector2> vec2List = new List<Vector2>(outVertCount[0]);
-                List<Vector3> vec3List = new List<Vector3>(outVertCount[0]);
-                List<Vector4> vec4List = new List<Vector4>(outVertCount[0]);
-                List<Color> colorList = new List<Color>(outVertCount[0]);
-
-                int indexStart = 0;
-                for (int i = 0; i < m_baker.m_vertexEementCount; ++i)
+                if (m != null)
                 {
-                    BakeContext.VertexElement el = m_baker.m_vertexDefinition[i];
-                    int componentCount = el.ComponentCount;
-                    int floatCount = outVertCount[0] * componentCount;
-
-                    switch (el.GetElType)
-                    {
-                        case BakeContext.VertexElementType.kPosition:
-                            CopyFloatArrToVectorList(vertexData, indexStart, floatCount, ref vec3List);
-                            mesh.SetVertices(vec3List);
-                            break;
-                        case BakeContext.VertexElementType.kNormal:
-                            CopyFloatArrToVectorList(vertexData, indexStart, floatCount, ref vec3List);
-                            mesh.SetNormals(vec3List);
-                            break;
-                        case BakeContext.VertexElementType.kUV0:
-                            CopyFloatArrToVectorList(vertexData, indexStart, floatCount, ref vec2List);
-                            mesh.SetUVs(0, vec2List);
-                            break;
-                        case BakeContext.VertexElementType.kTangent:
-                            CopyFloatArrToVectorList(vertexData, indexStart, floatCount, ref vec4List);
-                            mesh.SetTangents(vec4List);
-                            break;
-                        case BakeContext.VertexElementType.kColor:
-                            CopyFloatArrToVectorList(vertexData, indexStart, floatCount, ref colorList);
-                            mesh.SetColors(colorList);
-                            break;
-                        case BakeContext.VertexElementType.kUV1:
-                            CopyFloatArrToVectorList(vertexData, indexStart, floatCount, ref vec4List);
-                            mesh.SetUVs(1, vec4List);
-                            break;
-                        case BakeContext.VertexElementType.kUV2:
-                            CopyFloatArrToVectorList(vertexData, indexStart, floatCount, ref vec4List);
-                            mesh.SetUVs(2, vec4List);
-                            break;
-                        case BakeContext.VertexElementType.kUV3:
-                            CopyFloatArrToVectorList(vertexData, indexStart, floatCount, ref vec4List);
-                            mesh.SetUVs(3, vec4List);
-                            break;
-                        default:
-                            throw new ArgumentOutOfRangeException();
-                    }
-
-
-                    indexStart += floatCount;
+                    found = true;
+                    return m.name == bakeSetId + "_drtess_" + sourceMeshName;
                 }
+                return false;
+            }) ?? new Mesh();
 
-                mesh.triangles = triData;
+            BakeContext.CreateMeshFromTessellationData(m_bakerUtilityContext
+                                            , vertexFormats[0]
+                                            , outVertData[0]
+                                            , outVertCount[0]
+                                            , outTriData[0]
+                                            , outTriCount[0]
+                                            , ref outputSourceMesh);
+
+            outputSourceMesh.name = tessellatedMeshName;
+
+            meshes[0].sharedMesh = outputSourceMesh;
+
+            if (!found)
+            {
+                BakeData.Instance().AddToMeshContainer(meshContainer, outputSourceMesh);
             }
 
+            m_bakerUtilityContext.FreeContext();
 
-            FreeHandle(meshBufferData[0]);
-
-            m_baker.FreeContext();
+            EditorUtility.SetDirty(meshContainer);
 
             AssetDatabase.CreateAsset(mesh, BakeData.DataPath + "/TessMesh.asset");
             AssetDatabase.SaveAssets();
 
             return success;
+        }
+
+    #region _FindTessellationTriangles
+#if DDR_RUNTIME_DLL_LINKING_
+    private delegate
+#else
+        [DllImport(LIBNAME)]
+        private static extern
+#endif
+    int _FindTessellationTriangles(IntPtr bvhHandle, int vertexCount, IntPtr meshData, IntPtr worldMat, IntPtr triangleCounts
+        , IntPtr triangles, IntPtr basis0Data, IntPtr basis1Data, IntPtr basis2Data, [In, Out] int[] outFacesCount, [In, Out] IntPtr[] outFaces);
+        #endregion
+
+        public int FindTessellationTriangles(BVHHandle bvhHandle, MeshFilter mesh, Mesh bakeData, out int[] faces)
+        {
+            //List<MeshFilter> meshes = new List<MeshFilter>() { mesh };
+            List<MeshFilter> meshes = new List<MeshFilter>() { bvhHandle.SourceMeshData };
+            m_bakerUtilityContext.InitBakeContext(meshes, null, true);
+
+            // the data needed from the mesh
+            BakeContext.Vertex vertexFormat = new BakeContext.Vertex(new List<BakeContext.VertexElement> {
+                {new BakeContext.VertexElement(BakeContext.VertexElementType.kNormal, 3, Marshal.SizeOf(typeof(float)))},
+                {new BakeContext.VertexElement(BakeContext.VertexElementType.kTangent, 4, Marshal.SizeOf(typeof(float)))},
+            });
+            
+            // extract all data for the mesh
+            BakeContext.BuildSceneContext(meshes.ToArray(), null, null, m_bakerUtilityContext, new List<BakeContext.IVertex>(){vertexFormat,});
+
+            // extract bake data
+            var uv2 = new BakeContext.VertexElement(BakeContext.VertexElementType.kUV2, 4, Marshal.SizeOf(typeof(float)));
+            var uv3 = new BakeContext.VertexElement(BakeContext.VertexElementType.kUV3, 4, Marshal.SizeOf(typeof(float)));
+            var color = new BakeContext.VertexElement(BakeContext.VertexElementType.kColor, 4, Marshal.SizeOf(typeof(float)));
+
+            int sizeBytes = bakeData.vertexCount * color.TotalByteSize;
+            IntPtr basis0 = Alloc(sizeBytes);
+            IntPtr basis1 = Alloc(sizeBytes);
+            IntPtr basis2 = Alloc(sizeBytes);
+
+            BakeContext.CopyVectorArrayFromMesh(basis0, sizeBytes, sizeBytes, bakeData, color);
+            BakeContext.CopyVectorArrayFromMesh(basis1, sizeBytes, sizeBytes, bakeData, uv2);
+            BakeContext.CopyVectorArrayFromMesh(basis2, sizeBytes, sizeBytes, bakeData, uv3);
+            
+            int[] outFaceCount = new int[1] { 0 };
+            IntPtr[] outFaces = new IntPtr[1] { IntPtr.Zero };
+
+
+#if DDR_RUNTIME_DLL_LINKING_
+            int ret = Invoke<int, _FindTessellationTriangles>(bvhHandle.Ptr(), m_bakerUtilityContext.m_vertCounts[0], m_bakerUtilityContext.m_meshDataPtr, m_bakerUtilityContext.m_matDataPtr, m_bakerUtilityContext.m_triangleCountPtr, m_bakerUtilityContext.m_triangleDataPtr
+                                                , basis0, basis1, basis2, outFaceCount, outFaces);
+#else
+            int ret = _FindTessellationTriangles(bvhHandle.Ptr(), m_bakerUtilityContext.m_vertCounts[0], m_bakerUtilityContext.m_meshDataPtr, m_bakerUtilityContext.m_matDataPtr, m_bakerUtilityContext.m_triangleCountPtr, m_bakerUtilityContext.m_triangleDataPtr
+                                                , basis0, basis1, basis2, outFaceCount, outFaces);
+#endif
+
+            faces = IntPtrToIntArray(outFaces[0], outFaceCount[0]) ?? new int[0];
+
+            // free native buffers
+            Free(outFaces[0]);
+            Free(basis2);
+            Free(basis1);
+            Free(basis0);
+            m_bakerUtilityContext.FreeContext();
+
+            return ret;
         }
 
         #region _LightBlockersForVertex
@@ -1319,8 +1471,8 @@ namespace daydreamrenderer
         {
             BakeData.Instance().SaveBakeSettings();
         }
-        
-        private static void CopyFloatPtrToVectorList(IntPtr floatPtr, int count, ref List<Vector3> outList)
+
+        public static void CopyFloatPtrToVectorList(IntPtr floatPtr, int count, ref List<Vector3> outList)
         {
             if (count > 0 && floatPtr != IntPtr.Zero && ((count % 3) == 0))
             {
@@ -1333,33 +1485,46 @@ namespace daydreamrenderer
             }
         }
 
-        private static void CopyFloatArrToVectorList(float[] rawData, int indexStart, int count, ref List<Vector2> outArr)
+        public static void CopyFloat4PtrToColorList(IntPtr floatPtr, int count, ref List<Color> outList)
+        {
+            if (count > 0 && floatPtr != IntPtr.Zero && ((count % 4) == 0))
+            {
+                float[] rawData = new float[count];
+                Marshal.Copy(floatPtr, rawData, 0, count);
+                for (int i = 0; i < count; i += 4)
+                {
+                    outList.Add(new Color(rawData[i], rawData[i + 1], rawData[i + 2], rawData[i + 3]));
+                }
+            }
+        }
+
+        public static void CopyFloatArrToVectorList(float[] rawData, int indexStart, int count, ref List<Vector2> outArr)
         {
             const int componentCount = 2;
             CopyFloatArrToVectorList<Vector2>(componentCount, rawData, indexStart, count, ref outArr);
 
         }
 
-        private static void CopyFloatArrToVectorList(float[] rawData, int indexStart, int count, ref List<Vector3> outArr)
+        public static void CopyFloatArrToVectorList(float[] rawData, int indexStart, int count, ref List<Vector3> outArr)
         {
             const int componentCount = 3;
             CopyFloatArrToVectorList<Vector3>(componentCount, rawData, indexStart, count, ref outArr);
 
         }
 
-        private static void CopyFloatArrToVectorList(float[] rawData, int indexStart, int count, ref List<Vector4> outArr)
+        public static void CopyFloatArrToVectorList(float[] rawData, int indexStart, int count, ref List<Vector4> outArr)
         {
             const int componentCount = 4;
             CopyFloatArrToVectorList<Vector4>(componentCount, rawData, indexStart, count, ref outArr);
         }
 
-        private static void CopyFloatArrToVectorList(float[] rawData, int indexStart, int count, ref List<Color> outArr)
+        public static void CopyFloatArrToVectorList(float[] rawData, int indexStart, int count, ref List<Color> outArr)
         {
             const int componentCount = 4;
             CopyFloatArrToVectorList<Color>(componentCount, rawData, indexStart, count, ref outArr);
         }
 
-        private static void CopyFloatArrToVectorList<VEC>(int componentCount, float[] rawData, int indexStart, int count, ref List<VEC> outArr)
+        public static void CopyFloatArrToVectorList<VEC>(int componentCount, float[] rawData, int indexStart, int count, ref List<VEC> outArr)
         {
             outArr.Clear();
 
@@ -1372,14 +1537,14 @@ namespace daydreamrenderer
 
                 if(componentCount == 2 && v2arr != null)
                 {
-                    for(int i = 0; i < count; i += componentCount)
+                    for(int i = indexStart; i < count + indexStart; i += componentCount)
                     {
                         v2arr.Add(new Vector2(rawData[i], rawData[i + 1]));
                     }
                 }
                 else if(componentCount == 3 && v3arr != null)
                 {
-                    for(int i = 0; i < count; i += componentCount)
+                    for(int i = indexStart; i < count + indexStart; i += componentCount)
                     {
                         v3arr.Add(new Vector3(rawData[i], rawData[i + 1], rawData[i + 2]));
                     }
@@ -1388,14 +1553,14 @@ namespace daydreamrenderer
                 {
                     if(v4arr != null)
                     {
-                        for(int i = 0; i < count; i += componentCount)
+                        for(int i = indexStart; i < count + indexStart; i += componentCount)
                         {
                             v4arr.Add(new Vector4(rawData[i], rawData[i + 1], rawData[i + 2], rawData[i + 3]));
                         }
                     }
                     else if(colorList != null)
                     {
-                        for(int i = 0; i < count; i += componentCount)
+                        for(int i = indexStart; i < count + indexStart; i += componentCount)
                         {
                             colorList.Add(new Color(rawData[i], rawData[i + 1], rawData[i + 2], rawData[i + 3]));
                         }
@@ -1404,7 +1569,7 @@ namespace daydreamrenderer
             }
         }
 
-        private static float[] IntPtrToFloatArray(IntPtr floatPtr, int count)
+        public static float[] IntPtrToFloatArray(IntPtr floatPtr, int count)
         {
             if (count > 0 && floatPtr != IntPtr.Zero)
             {
@@ -1412,11 +1577,10 @@ namespace daydreamrenderer
                 Marshal.Copy(floatPtr, rawData, 0, count);
                 return rawData;
             }
-
             return null;
         }
 
-        private static int[] IntPtrToIntArray(IntPtr intPtr, int count)
+        public static int[] IntPtrToIntArray(IntPtr intPtr, int count)
         {
             if (count > 0 && intPtr != IntPtr.Zero)
             {
@@ -1424,7 +1588,17 @@ namespace daydreamrenderer
                 Marshal.Copy(intPtr, rawData, 0, count);
                 return rawData;
             }
+            return null;
+        }
 
+        public static IntPtr[] IntPtrToIntPtrArray(IntPtr intPtr, int count)
+        {
+            if (count > 0 && intPtr != IntPtr.Zero)
+            {
+                IntPtr[] rawData = new IntPtr[count];
+                Marshal.Copy(intPtr, rawData, 0, count);
+                return rawData;
+            }
             return null;
         }
 

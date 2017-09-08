@@ -185,8 +185,8 @@ public class DaydreamStandardUI : ShaderGUI
         toggleFeature("AMBIENT_OCCLUSION", Styles.m_ambientOcclusionGC, targetMats);
         toggleFeature("SHADOWS",         Styles.m_shadowRecieverGC, targetMats);
         toggleFeature("DYNAMIC_AMBIENT", Styles.m_dynamicAmbientGC, targetMats);
-		
-		bool enabledStaticLighting = toggleFeature("STATIC_LIGHTING", Styles.m_staticLightingGC, targetMats);
+        
+        bool enabledStaticLighting = toggleFeature("STATIC_LIGHTING", Styles.m_staticLightingGC, targetMats);
         if (enabledStaticLighting)
         {
             EditorGUI.indentLevel = 1;
@@ -209,7 +209,7 @@ public class DaydreamStandardUI : ShaderGUI
                 }
             }
         }
-		else
+        else
         {
             foreach (var obj in targetMats)
             {
@@ -278,7 +278,7 @@ public class DaydreamStandardUI : ShaderGUI
         m_previewUtility.EndAndDrawPreview(r);
         
         // update Imported Object preview materials
-        if (AssetDatabase.Contains(Selection.activeObject))
+        if (Selection.activeObject && AssetDatabase.Contains(Selection.activeObject))
         {
             GameObject go = Selection.activeObject as GameObject;
             if(go != null)

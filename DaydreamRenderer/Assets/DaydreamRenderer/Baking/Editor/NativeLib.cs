@@ -76,16 +76,16 @@ namespace daydreamrenderer
             }
         }
 
-        public bool LoadLib()
+        public virtual bool LoadLib()
         {
 #if DDR_RUNTIME_DLL_LINKING_
-        bool res = false;
-        lock (m_watchLock)
-        {
-            res = InternalLoadLib();
-        }
+            bool res = false;
+            lock (m_watchLock)
+            {
+                res = InternalLoadLib();
+            }
 
-        return res;
+            return res;
 #else
             return true;
 #endif

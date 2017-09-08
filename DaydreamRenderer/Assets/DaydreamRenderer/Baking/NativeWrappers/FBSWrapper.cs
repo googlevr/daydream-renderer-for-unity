@@ -34,20 +34,27 @@ namespace daydreamrenderer
         }
 
         public virtual void Load()
-        {
+        { 
+            FileStream fs = null;
             try
             {
-                FileStream fs = File.OpenRead(m_filePath);
+                fs = File.OpenRead(m_filePath);
                 fs.Seek(sizeof(int), SeekOrigin.Begin);
                 byte[] bytes = new byte[fs.Length - sizeof(int)];
                 fs.Read(bytes, 0, (int)(fs.Length - sizeof(int)));
                 ByteBuffer bb = new ByteBuffer(bytes);
-
                 m_fbsObj = CreateObject(bb);
             }
             catch (Exception e)
             {
                 Debug.LogError(e.Message + "\n" + e.StackTrace);
+            }
+            finally
+            {
+                if(fs != null)
+                {
+                    fs.Close();
+                }
             }
         }
 

@@ -36,14 +36,13 @@ namespace daydreamrenderer
         static Vector2 s_position;
         static bool s_inputUpdate = false;
         static int s_currentIdx = 0;
-        private int m_vertOffset = 0;
+        static int s_currentFace = 0;
         #endif
         static Stack<Color> s_gizmoColors = new Stack<Color>();
         static SamplePatch s_samplePatch = new SamplePatch();
         
         static OccluderData s_occluderTestData = new OccluderData();
         
-
         public static class Styles
         {
             public static readonly GUIContent m_vertLightingLabel = new GUIContent("Vertex Lighting Mesh", "Additional vertex stream containing lighting data");
@@ -58,6 +57,8 @@ namespace daydreamrenderer
             public static readonly GUIContent m_avgNormalsLabel = new GUIContent("Averaged Normals", "Show how 'Normal Averaging' setting is affecting normals");
             public static readonly GUIContent m_bvhLabel = new GUIContent("BVH", "Show the bounding volume hierarchy of the mesh");
             public static readonly GUIContent m_normalsLabel = new GUIContent("Mesh Normals", "Show the normals stored in the vertex");
+            public static readonly GUIContent m_tessellationLabel = new GUIContent("Tessellation Faces", "Show the faces that would be flagged for tessellation");
+            public static readonly GUIContent m_selectedFaceLabel = new GUIContent("Selected Face", "Show the currently selected face");
         }
 
         public class OccluderData
@@ -72,8 +73,9 @@ namespace daydreamrenderer
         {
             DaydreamVertexLighting source = target as DaydreamVertexLighting;
             MeshFilter meshFilter = source.GetComponent<MeshFilter>();
+            Mesh untessellatedMesh = source.GetUntessellatedMesh();
 
-            Init(meshFilter);
+            Init(meshFilter, untessellatedMesh);
         }
 
         public override void OnInspectorGUI()
@@ -99,7 +101,8 @@ namespace daydreamrenderer
             EditorGUI.BeginChangeCheck();
             if (s_debugState.m_debugEnabled)
             {
-                m_vertOffset = EditorGUILayout.IntField(Styles.m_vertOffset, m_vertOffset);
+                s_debugState.m_indexOffset = EditorGUILayout.IntField(Styles.m_vertOffset, s_debugState.m_indexOffset);
+                s_debugState.m_showFace = EditorGUILayout.Toggle(Styles.m_selectedFaceLabel, s_debugState.m_showFace);
                 s_debugState.m_showLightBlockerSamples = EditorGUILayout.Toggle(Styles.m_lightBlockerLabel, s_debugState.m_showLightBlockerSamples);
                 if (s_debugState.m_showLightBlockerSamples)
                 {
@@ -114,6 +117,7 @@ namespace daydreamrenderer
                 s_debugState.m_showBentNormalSamples = EditorGUILayout.Toggle(Styles.m_avgNormalsLabel, s_debugState.m_showBentNormalSamples);
                 s_debugState.m_showBVH = EditorGUILayout.Toggle(Styles.m_bvhLabel, s_debugState.m_showBVH);
                 s_debugState.m_showNormals = EditorGUILayout.Toggle(Styles.m_normalsLabel, s_debugState.m_showNormals);
+                s_debugState.m_showTessTriangles = EditorGUILayout.Toggle(Styles.m_tessellationLabel, s_debugState.m_showTessTriangles);
             }
             if (EditorGUI.EndChangeCheck())
             {
@@ -141,7 +145,6 @@ namespace daydreamrenderer
                     int v1 = source.m_sourceMesh.triangles[face+1];
                     int v2 = source.m_sourceMesh.triangles[face+2];
 
-
                     s_cacheWrapper.GetTrisForEdge(v0, v1);
                     s_cacheWrapper.GetTrisForEdge(v0, v2);
                     s_cacheWrapper.GetTrisForEdge(v1, v2);
@@ -151,6 +154,7 @@ namespace daydreamrenderer
                 // list all the faces for the adjacencies in question
                 VertexBakerLib.Instance.TessellateTriangles(s_bvhHandle, subMeshFaces);
             }
+
 #endif
         }
 
@@ -205,16 +209,21 @@ namespace daydreamrenderer
                     }
 
                     int index = VertexBakerLib.Instance.RayToIndex(s_bvhHandle, ray.origin, ray.origin + ray.direction * farPlane);
-                    if (index < 0)
+                    int colFace = VertexBakerLib.Instance.RayToTriangle(s_bvhHandle, ray.origin, ray.origin + ray.direction * farPlane);
+                    if (index < 0 || colFace < 0)
                     {
                         return;
                     }
 
+                    s_currentFace = colFace;
                     s_currentIdx = index;
+
+                    if(s_debugState.m_showFace) Debug.Log("Selected face " + s_currentFace);
                 }
 
                 if (s_currentIdx + s_debugState.m_indexOffset < 0) return;
 
+                int faceIdx = s_currentFace % (s_debugState.m_triangles.Length);
                 int idx = (s_currentIdx + s_debugState.m_indexOffset) % s_debugState.m_worldVerPos.Length;
 
                 s_debugState.m_vertexSampleIndex = idx;
@@ -222,6 +231,26 @@ namespace daydreamrenderer
                 float patchScale = Mathf.Max(source.transform.localToWorldMatrix.m00, source.transform.localToWorldMatrix.m11, source.transform.localToWorldMatrix.m22);
                 float radius = s_cacheWrapper.GetPatchRadius(idx);
                 float sampleRadius = radius * patchScale;
+
+                if(faceIdx > -1 && s_debugState.m_showFace)
+                {
+                    Color c = Color.red + Color.green;
+                    PushGizmoColor(c);
+
+                    int[] triangles = s_debugState.m_triangles;
+                    
+                    Vector3 n = s_debugState.m_worldNormals[triangles[faceIdx]] * 0.02f;
+                    Vector3 v0 = s_debugState.m_worldVerPos[triangles[faceIdx]];
+                    Vector3 v1 = s_debugState.m_worldVerPos[triangles[faceIdx + 1]];
+                    Vector3 v2 = s_debugState.m_worldVerPos[triangles[faceIdx + 2]];
+
+                    Gizmos.DrawLine(n + v0, n + v1);
+                    Gizmos.DrawLine(n + v0, n + v2);
+                    Gizmos.DrawLine(n + v1, n + v2);
+
+                    PopGizmoColor();
+
+                }
 
                 if (s_debugState.m_showBVH)
                 {
@@ -347,6 +376,42 @@ namespace daydreamrenderer
                         Gizmos.DrawLine(pos, pos + norm);
                     }
                     PopGizmoColor();
+                }
+
+                if (s_debugState.m_showTessTriangles && source.VertexLighting != null)
+                {
+                    if (s_debugState.m_tessFaces == null)
+                    {
+                        MeshFilter meshFilter = source.GetComponent<MeshFilter>();
+                        //MeshRenderer mr = source.GetComponent<MeshRenderer>();
+                        BuildTessFaces(s_bvhHandle, meshFilter, source.VertexLighting);
+                        //mr.additionalVertexStreams = null;
+                        //meshFilter.sharedMesh.SetColors(colors);
+                    }
+
+                    Color c = Color.green;
+                    PushGizmoColor(c);
+
+                    int[] triangles = s_debugState.m_triangles;
+
+                    for (int f = 0; f< s_debugState.m_tessFaces.Length; ++f)
+                    {
+                        int face = s_debugState.m_tessFaces[f];
+                        Vector3 n = s_debugState.m_worldNormals[triangles[face]] * 0.07f;
+                        Vector3 v0 = s_debugState.m_worldVerPos[triangles[face]];
+                        Vector3 v1 = s_debugState.m_worldVerPos[triangles[face+1]];
+                        Vector3 v2 = s_debugState.m_worldVerPos[triangles[face+2]];
+
+                        Gizmos.DrawLine(n + v0, n + v1);
+                        Gizmos.DrawLine(n + v0, n + v2);
+                        Gizmos.DrawLine(n + v1, n + v2); 
+                    }
+                    
+                    PopGizmoColor();
+                }
+                else
+                {
+                    s_debugState.m_tessFaces = null;
                 }
 
             }
@@ -480,8 +545,7 @@ namespace daydreamrenderer
             MeshFilter meshFilter = source.GetComponent<MeshFilter>();
             if (meshFilter != null)
             {
-                string message = VertexBakerLib.Instance.BuildBVH(new MeshFilter[] { meshFilter }); ;
-                VertexBakerLib.Log("Baking message: " + message);
+                VertexBakerLib.Instance.BuildBVH(new MeshFilter[] { meshFilter }); ;
             }
 
             VertexBakerLib.Log("Seconds to complete: " + (DateTime.Now - start).TotalSeconds);

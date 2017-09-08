@@ -564,27 +564,20 @@ Finally you can always clear all data involved in the bake process by going to t
 
 # Daydream Lighting System
 
-Daydream Renderer utilizes a custom lighting system for sorting lights and providing light data to shaders. This allows the renderer to seamlessly provide static vertex lighting support. In order for the lighting system to gather lights (and thus provide that data to materials/shaders) a component is added to each light to feed its data into the system. Also, a component is added to each object with a ‘Renderer’ component in order to feed the necessary object data into the lighting system. These components are auto-added at edit time only, not run time. If you have prefabs that are dynamically loaded into the scene you may need to drag them into the scene, which will allow these components to be added as needed, and then ‘Apply’ the changes to the prefab.
+Daydream Renderer utilizes a custom lighting system for sorting lights and providing light data to shaders. This allows the renderer to seamlessly provide static vertex lighting support. In order for the lighting system to gather lights (and thus provide that data to materials/shaders) a component is added to each light to feed its data into the system. Also, a component is added to each object with a ‘Renderer’ component in order to feed the necessary object data into the lighting system. These components are auto-added at edit time only, not run time. If you have prefabs that are dynamically loaded at runtime you may need to drag them into the scene in order to automatically add the needed components and then ‘Apply’ the changes to the prefab, or attach the 'Daydream Mesh Renderer' and 'Daydream Light' components through script as needed.
 
 ## Disable Daydream Lighting System
 
-To disable the daydream lighting system open Windows->Daydream Renderer->Import Wizard,
+To disable the daydream lighting system open Windows->Daydream Renderer->Import Wizard (or open the Daydream Renderer scene object) and toggle the 'Enable Unity Lighting' button.
 
-And uncheck ‘Enable Daydream Lighting System’ this will revert shaders to the Unity lighting system and remove lighting components from the scene.
+![image](markdown/images/lightingsystem_editor.png)
 
 ## Disable Auto Add
 
-To disable lighting system components from being automatically added uncheck the ‘auto add’ toggle in the Import Wizard
+The Daydream Renderer automatically adds lighting components to the scene. To disable this feature toggle Windows->Daydream Renderer->Import Wizard (or open the Daydream Renderer scene object)
 
-![image](markdown/images/image_18.png)
+![image](markdown/images/lighting_advanced.png)
 
-Once unchecked components can be added to scene manually or removed entirely.
+Toggle on the 'Manual Components' option to disable auto add, for convenience you can add and remove the lighting components from the scene using the 'remove' and 'add' buttons.
 
-![image](markdown/images/image_19.png)
-
-## Add lighting components to project assets
-
-Sometimes it is necessary to add components to imported model objects or prefabs in the project view so they can be dynamically added at runtime. The following interface automates adding and removing these components
-
-![image](markdown/images/image_20.png)
 

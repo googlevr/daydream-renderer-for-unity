@@ -35,21 +35,32 @@ namespace daydreamrenderer
                 {
                     if(m.shader.name.ToLower().Contains("daydream"))
                     {
+                        DaydreamMeshRenderer dmr = r.gameObject.GetComponent<DaydreamMeshRenderer>();
+                        if (dmr != null)
+                        {
+                            GameObject.DestroyImmediate(dmr, true);
+                        }
                         r.gameObject.AddComponent<DaydreamMeshRenderer>();
+
                         break;
                     }
                 }
             }
         }
 
+        void OnPreprocessModel()
+        {
+            Debug.Log(assetPath);
+        }
+
         static void OnPostprocessAllAssets(string[] importedAssets, string[] deletedAssets, string[] movedAssets, string[] movedFromAssetPaths)
         {
             List<string> assetNames = new List<string>(importedAssets);
-
+        
             // Filter down to just model data
             assetNames.RemoveAll(delegate (string assetName)
                 {
-                    return !(assetName.EndsWith("fbx") || assetName.EndsWith("ma") || assetName.EndsWith("mb"));
+                    return !(assetName.ToLower().EndsWith("fbx") || assetName.ToLower().EndsWith("ma") || assetName.ToLower().EndsWith("mb"));
                 });
 
             // pull out statically lit objects in the scene

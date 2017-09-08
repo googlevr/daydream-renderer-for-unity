@@ -1,4 +1,4 @@
-﻿///////////////////////////////////////////////////////////////////////////////
+﻿﻿///////////////////////////////////////////////////////////////////////////////
 //Copyright 2017 Google Inc.
 //
 //Licensed under the Apache License, Version 2.0 (the "License");
@@ -19,6 +19,7 @@ using System.Collections;
 using System.Collections.Generic;
 using System;
 using UnityEngine.SceneManagement;
+using System.IO;
 #if UNITY_EDITOR
 using UnityEditor;
 #endif
@@ -29,7 +30,10 @@ namespace daydreamrenderer
     public class DaydreamVertexLighting : MonoBehaviour
     {
         const int kMaxVerts = (1 << 16)-1;
+        public string m_sourceMeshPath;
         public Mesh m_sourceMesh;
+        public Mesh m_untessellatedMesh;
+        public bool m_wasTessellated = false;
         public BakeSets m_bakeSets;
         public MeshContainer m_currentContainer;
         public Mesh m_originalMesh;
@@ -56,11 +60,27 @@ namespace daydreamrenderer
                 m_lightingMeshName = value.name;
             }
         }
+
+        public Mesh GetSourcMesh()
+        {
+            return GetComponent<MeshFilter>().sharedMesh;
+        }
+
+        public Mesh GetUntessellatedMesh()
+        {
+            if(m_untessellatedMesh != null && m_untessellatedMesh.vertexCount > 0)
+            {
+                return m_untessellatedMesh;
+            }
+            return GetComponent<MeshFilter>().sharedMesh;
+        }
+
+
         public void Awake()
         {
             m_meshRenderer = GetComponent<MeshRenderer>();
 #if UNITY_EDITOR
-            m_sourceMesh = GetComponent<MeshFilter>().sharedMesh;
+            m_sourceMesh = GetSourcMesh();
 #endif
             LoadLightingMesh();
 
@@ -82,9 +102,7 @@ namespace daydreamrenderer
                 && (m_meshRenderer == null || m_meshRenderer.additionalVertexStreams == null) 
                 && m_currentContainer != null)
             {
-                m_meshRenderer = GetComponent<MeshRenderer>();
-                MeshFilter meshFilter = GetComponent<MeshFilter>();
-                m_sourceMesh = meshFilter.sharedMesh;
+                m_sourceMesh = GetSourcMesh();
 
                 LoadLightingMesh();
             }

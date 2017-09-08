@@ -25,9 +25,11 @@ using UnityEngine.SceneManagement;
 namespace daydreamrenderer
 {
     public class DDRSettings : ScriptableObject
-    {
-
-        const int BAKESETTINGS_VER = 1;
+    { 
+        const int BAKESETTINGS_VER_ONE = 1;
+        const int BAKESETTINGS_TESS_V1 = 2;
+        const int BAKESETTINGS_TESS_V2 = 3;
+        const int BAKESETTINGS_VER = BAKESETTINGS_TESS_V2;
 
         public int m_selectedSettings = 0;
         public List<BakeSettings> m_settingsList = new List<BakeSettings>();
@@ -36,6 +38,13 @@ namespace daydreamrenderer
         {
             public const string kRoot = "-=Root=-";
             public const string kGroup = "-=Group=-";
+        }
+
+        public enum TessLevel
+        {
+            Simple,
+            Advanced,
+            VeryAdvanced,
         }
 
         [System.Serializable]
@@ -322,8 +331,8 @@ namespace daydreamrenderer
             public float[] m_colorSolid =
             {
             Color.gray.r, Color.gray.g, Color.gray.b, 1f,
-        };
-
+            };
+            
             // the distance away from the object to start a ray from
             public float m_rayStartOffset = 0.1f;
 
@@ -355,6 +364,66 @@ namespace daydreamrenderer
 
             public float m_debugSlider = 0.0f;
 
+            // tessellation controls
+            public static class TessellationDefaults
+            {
+                public const int kMaxTessIterations = 2;
+                public const int kMaxTessVertices = -1;
+                public const int kMinTessIterations = 0;
+                public const int kMaxAOTessIterations = 2;
+                public const int kMaxShadowSoftTessIterations = 2;
+                public const int kMaxShadowHardTessIterations = 4;
+                public const int kMaxIntensityTessIterations = -1;
+                public const float kIntesityThreshold = 0.35f;
+                public const float kAvgIntensityThreshold = 0.1f;
+                public const float kSurfaceLightThresholdMin = 0.23f;
+                public const float kSurfaceLightThresholdMax = 0.85f;
+                public const float kAccessabilityThreshold = 0.65f;
+            }
+            
+            // level of control exposed to UI
+            public TessLevel m_tessControlLevel = TessLevel.Simple;
+            // turns tessellation on/off
+            public bool m_tessEnabled = false;
+            // limit the number of tessellation iterations allowed, -1 indicates no limits
+            public int m_maxTessIterations = TessellationDefaults.kMaxTessIterations;
+            // limit the number of vertices tessellation is allowed to create, -1 indicates no limits
+            public int m_maxTessVertices = TessellationDefaults.kMaxTessVertices;
+            // forces a mesh to this level of tessellation
+            public int m_minTessIterations = TessellationDefaults.kMinTessIterations;
+            // force ambient occlusion triangles to higher resolution
+            public int m_maxAOTessIterations = TessellationDefaults.kMaxAOTessIterations;
+            // specifies the tessellation level that represents a 'soft' shadow edge
+            public int m_maxShadowSoftTessIterations = TessellationDefaults.kMaxShadowSoftTessIterations;
+            // specifies the tessellation level that represents a 'hard' shadow edge
+            public int m_maxShadowHardTessIterations = TessellationDefaults.kMaxShadowHardTessIterations;
+            // specifies the max level of tessellation wrt light frequency changes
+            public int m_maxIntensityTessIterations = TessellationDefaults.kMaxIntensityTessIterations;
+            // if the difference between any of the 3 vertices of a triangle exceeds this threshold it is tessellated
+            public float m_intesityThreshold = TessellationDefaults.kIntesityThreshold;
+            // if the difference between any of the 3 vertices of a triangle exceeds this 'average' threshold it is tessellated
+            public float m_avgIntensityThreshold = TessellationDefaults.kAvgIntensityThreshold;
+            // if light amount on a patch (wrt to shadow casting) is between these values the patch is tessellated
+            public float m_surfaceLightThresholdMin = TessellationDefaults.kSurfaceLightThresholdMin;
+            public float m_surfaceLightThresholdMax = TessellationDefaults.kSurfaceLightThresholdMax;
+            // if the accessibility of a triangle (wrt to ambient occlusion) is below this amount it is tessellated
+            public float m_accessabilityThreshold = TessellationDefaults.kAccessabilityThreshold;
+
+            public void RestoreTessellationDefaults() {
+                m_maxTessIterations = TessellationDefaults.kMaxTessIterations;
+                m_maxTessVertices = TessellationDefaults.kMaxTessVertices;
+                m_minTessIterations = TessellationDefaults.kMinTessIterations;
+                m_maxAOTessIterations = TessellationDefaults.kMaxAOTessIterations;
+                m_maxShadowSoftTessIterations = TessellationDefaults.kMaxShadowSoftTessIterations;
+                m_maxShadowHardTessIterations = TessellationDefaults.kMaxShadowHardTessIterations;
+                m_maxIntensityTessIterations = TessellationDefaults.kMaxIntensityTessIterations;
+                m_intesityThreshold = TessellationDefaults.kIntesityThreshold;
+                m_avgIntensityThreshold = TessellationDefaults.kAvgIntensityThreshold;
+                m_surfaceLightThresholdMin = TessellationDefaults.kSurfaceLightThresholdMin;
+                m_surfaceLightThresholdMax = TessellationDefaults.kSurfaceLightThresholdMax;
+                m_accessabilityThreshold = TessellationDefaults.kAccessabilityThreshold;
+            }
+
             public byte[] ToFlatbuffer()
             {
                 FlatBufferBuilder builder = new FlatBufferBuilder(1);
@@ -382,6 +451,8 @@ namespace daydreamrenderer
 
                 fbs_BakeSettings.Startfbs_BakeSettings(builder);
 
+                fbs_BakeSettings.AddVersion(builder, BAKESETTINGS_VER);
+
                 // shadow settings
                 fbs_BakeSettings.AddShadowsEnabled(builder, m_shadowsEnabled);
                 fbs_BakeSettings.AddRayStartOffset(builder, m_rayStartOffset);
@@ -402,6 +473,21 @@ namespace daydreamrenderer
                 fbs_BakeSettings.AddAmbientMin(builder, m_ambientMin);
                 fbs_BakeSettings.AddAmbientMax(builder, m_ambientMax);
                 fbs_BakeSettings.AddColorMode(builder, (int)m_colorMode);
+
+                // tessellation
+                fbs_BakeSettings.AddTessEnabled(builder, m_tessEnabled);
+                fbs_BakeSettings.AddMinTessIterations(builder, m_minTessIterations);
+                fbs_BakeSettings.AddMaxTessIterations(builder, m_maxTessIterations);
+                fbs_BakeSettings.AddMaxTessVertices(builder, m_maxTessVertices);
+                fbs_BakeSettings.AddMaxAOTessIterations(builder, m_maxAOTessIterations);
+                fbs_BakeSettings.AddMaxShadowSoftTessIterations(builder, m_maxShadowSoftTessIterations);
+                fbs_BakeSettings.AddMaxShadowHardTessIterations(builder, m_maxShadowHardTessIterations);
+                fbs_BakeSettings.AddMaxIntensityTessIterations(builder, m_maxIntensityTessIterations);
+                fbs_BakeSettings.AddIntesityThreshold(builder, m_intesityThreshold);
+                fbs_BakeSettings.AddAvgIntensityThreshold(builder, m_avgIntensityThreshold);
+                fbs_BakeSettings.AddSurfaceLightThresholdMin(builder, m_surfaceLightThresholdMin);
+                fbs_BakeSettings.AddSurfaceLightThresholdMax(builder, m_surfaceLightThresholdMax);
+                fbs_BakeSettings.AddAccessabilityThreshold(builder, m_accessabilityThreshold);
 
                 var settings = fbs_BakeSettings.Endfbs_BakeSettings(builder);
                 builder.Finish(settings.Value);
@@ -431,6 +517,29 @@ namespace daydreamrenderer
                 if (m_version > 0)
                 {
                     m_aoForceDoubleSidedGeo = settings.AoForceDoubleSidedGeo;
+                }
+
+                if(m_version >= BAKESETTINGS_TESS_V1)
+                {
+                    // tessellation
+                    m_tessEnabled = settings.TessEnabled;
+                    m_maxTessIterations = settings.MaxTessIterations;
+                    m_maxTessVertices = settings.MaxTessVertices;
+                }
+
+                if (m_version >= BAKESETTINGS_TESS_V2)
+                {
+                    m_minTessIterations = settings.MinTessIterations;
+                    m_maxAOTessIterations = settings.MaxAOTessIterations;
+                    m_maxShadowSoftTessIterations = settings.MaxShadowSoftTessIterations;
+                    m_maxShadowHardTessIterations = settings.MaxShadowHardTessIterations;
+                    m_maxIntensityTessIterations = settings.MaxIntensityTessIterations;
+
+                    m_intesityThreshold = settings.IntesityThreshold;
+                    m_avgIntensityThreshold = settings.AvgIntensityThreshold;
+                    m_surfaceLightThresholdMin = settings.SurfaceLightThresholdMin;
+                    m_surfaceLightThresholdMax = settings.SurfaceLightThresholdMax;
+                    m_accessabilityThreshold = settings.AccessabilityThreshold;
                 }
 
                 // ambient

@@ -1,4 +1,4 @@
-﻿///////////////////////////////////////////////////////////////////////////////
+﻿﻿///////////////////////////////////////////////////////////////////////////////
 //Copyright 2017 Google Inc.
 //
 //Licensed under the Apache License, Version 2.0 (the "License");
@@ -49,7 +49,7 @@ namespace daydreamrenderer
         "Negative Y",
         "Positive Z",
         "Negative Z",
-    };
+        };
 
         static class Toolbar
         {
@@ -93,6 +93,23 @@ namespace daydreamrenderer
             public static readonly GUIContent m_max = new GUIContent("Max Value");
             public static readonly GUIContent m_ambientSource = new GUIContent("Ambient Source", "Solid ambient color, or axis aligned color cube");
             public static readonly GUIContent m_ambientColor = new GUIContent("Ambient Color");
+            public static readonly GUIContent m_tessellationHeader = new GUIContent("Dynamic Tessellation");
+            public static readonly GUIContent m_enableTessellation = new GUIContent("Enable Dynamic Tessellation", "Improve static vertex lighting quality by dynamically adding tessellation during the bake process");
+            public static readonly GUIContent m_minTessIterations = new GUIContent("Min Iterations", "This will force an entire mesh to a minimum level of tessellation");
+            public static readonly GUIContent m_maxTessIterations = new GUIContent("Max Iterations", "Limit the number of tessellation iterations allowed for a mesh, -1 indicates not limits");
+            public static readonly GUIContent m_tessShadowSoftness = new GUIContent("Shadow Softness", "Specifies the tessellation level that represents a 'soft' shadow edge. Softness of a shadow is determined by light shadow settings.");
+            public static readonly GUIContent m_tessShadowHardness = new GUIContent("Shadow Hardness", "Specifies the tessellation level that represents a 'hard' shadow edge. Hardness of a shadow is determined by light shadow settings.");
+            public static readonly GUIContent m_maxTessVertices = new GUIContent("Max Vertices", "Limit the maximum number of vertices allowed, -1 indicates not limits");
+            public static readonly GUIContent m_tessAOPasses = new GUIContent("AO Resolution", "Specifies iteration passes on areas affected by ambient occlusion");
+            public static readonly GUIContent m_aoAccessibilityThreshold = new GUIContent("AO Threshold", "If the accessibility of a surface falls below this value it is a target for tessellation.");
+            public static readonly GUIContent m_surfaceLightThresholdMin = new GUIContent("Shadow Edge Min", "Amount of light that constitutes the leading edge of a shadow.");
+            public static readonly GUIContent m_surfaceLightThresholdMax = new GUIContent("Shadow Edge Max", "Amount of light that constitutes the beginning of the inner shadow 'body'.");
+            public static readonly GUIContent m_surfaceLightThreshold = new GUIContent("Shadow Edge Min/Max", "This value controls the range of values that indicate a shadow edge."
+                                                                                                                            + " The shadow edge is then tessellated according to the how much hard and soft light is hitting it.");
+            public static readonly GUIContent m_lightIntensityThreshold = new GUIContent("Light Intensity Threshold", "If the difference between any of the 3 vertices of a triangle exceeds this threshold it is tessellated");
+            public static readonly GUIContent m_avgLightIntensityThreshold = new GUIContent("Avg Light Intensity Threshold", "If the difference between any of the 3 vertices of a triangle exceeds this 'average' threshold it is tessellated."
+                                                                                            + "The average intensity is based on a 'light patch' which is a rectangle around a vertex encompassing all triangles that include that vertex.");
+            public static readonly GUIContent m_restoreDefaults = new GUIContent("Restore Defaults", "Restore tessellation default values.");
 
             public static GUIStyle m_toolbarButton = new GUIStyle(EditorStyles.toolbar);
             public static GUIStyle m_toolbarButtonSelected = new GUIStyle(EditorStyles.toolbarButton);
@@ -169,20 +186,33 @@ namespace daydreamrenderer
 
         void OnGUI()
         {
-            if(SceneManager.GetActiveScene().name == "")
+
+            DaydreamRenderer renderer = FindObjectOfType<DaydreamRenderer>();
+            if (renderer == null)
+            {
+                GUILayout.Space(50);
+                EditorGUILayout.HelpBox("Enable Daydream Renderer To Start Baking", MessageType.Info);
+                if (GUILayout.Button("Launch Daydream Wizard"))
+                {
+                    DaydreamRendererImportManager.OpenWindow();
+                }
+                return;
+            }
+
+            if (SceneManager.GetActiveScene().name == "")
             {
                 GUILayout.Space(50);
                 EditorGUILayout.HelpBox("Save the scene to begin baking", MessageType.Info);
                 return;
             }
 
-            if (!DaydreamRendererImportSettings.BakingEnabledForScene)
+            if (!renderer.m_enableStaticLightingForScene)
             {
                 GUILayout.Space(50);
                 EditorGUILayout.HelpBox("Enable vertex baking to use Daydream Static Lighting", MessageType.Info);
                 if (GUILayout.Button("Enable Vertex Baking For Scene"))
                 {
-                    DaydreamRendererImportSettings.BakingEnabledForScene = true;
+                    renderer.m_enableStaticLightingForScene = true;
                 }
                 return;
             }
@@ -355,7 +385,7 @@ namespace daydreamrenderer
                 {
                     s_settingsDialog.CancelDialog();
                 }
-            }
+            }                       
 
             DrawShadowAndAOSettings(settings, settingsData);
 
@@ -510,7 +540,7 @@ namespace daydreamrenderer
 
             EditorGUILayout.EndVertical();
             EditorGUILayout.EndHorizontal();
-
+            
             GUILayout.Space(50);
 
             if (VertexBakerLib.Instance.BakeInProgress())
@@ -908,8 +938,69 @@ namespace daydreamrenderer
             return changed;
         }
 
-        public static void DrawShadowAndAOSettings(BakeSettings settings, UnityEngine.Object undoObject = null)
+        public static void DrawShadowAndAOSettings(BakeSettings settings, UnityEngine.Object undoObject = null, bool enableMinTessellationLevel = false)
         {
+
+            // Tessellation - temporarily disabled
+            /*
+            // Tessellation settings
+            settings.m_tessEnabled = EditorGUILayout.BeginToggleGroup(Styles.m_enableTessellation, settings.m_tessEnabled);
+            EditorGUILayout.BeginHorizontal();
+            GUILayout.Space(Styles.kIndent);
+            EditorGUILayout.BeginVertical();
+
+            EditorGUILayout.BeginHorizontal();
+            settings.m_tessControlLevel = (DDRSettings.TessLevel)EditorGUILayout.EnumPopup("Controls", settings.m_tessControlLevel);
+            if(GUILayout.Button(Styles.m_restoreDefaults, EditorStyles.miniButton))
+            {
+                if(EditorUtility.DisplayDialog("Tessellation Settings", "Restore defaults, are you sure?", "Yes", "No"))
+                {
+                    settings.RestoreTessellationDefaults();
+                }
+            }
+
+            EditorGUILayout.EndHorizontal();
+
+            const int maxLevel = 8;
+            if(enableMinTessellationLevel)
+            {
+                settings.m_minTessIterations = EditorGUILayout.IntSlider(Styles.m_minTessIterations, settings.m_minTessIterations, 0, maxLevel);
+            }
+            settings.m_maxTessIterations = EditorGUILayout.IntSlider(Styles.m_maxTessIterations, settings.m_maxTessIterations, 0, maxLevel);
+            //settings.m_maxTessVertices = EditorGUILayout.IntField(Styles.m_maxTessVertices, settings.m_maxTessVertices);
+
+            if (settings.m_tessControlLevel == DDRSettings.TessLevel.Advanced || settings.m_tessControlLevel == DDRSettings.TessLevel.VeryAdvanced)
+            {
+                settings.m_maxShadowSoftTessIterations = EditorGUILayout.IntSlider(Styles.m_tessShadowSoftness, settings.m_maxShadowSoftTessIterations, 0, maxLevel);
+                settings.m_maxShadowHardTessIterations = EditorGUILayout.IntSlider(Styles.m_tessShadowHardness, settings.m_maxShadowHardTessIterations, 0, maxLevel);
+                settings.m_maxAOTessIterations = EditorGUILayout.IntSlider(Styles.m_tessAOPasses, settings.m_maxAOTessIterations, 0, maxLevel);
+            }
+            
+            if(settings.m_tessControlLevel == DDRSettings.TessLevel.VeryAdvanced)
+            {
+                settings.m_intesityThreshold = EditorGUILayout.Slider(Styles.m_lightIntensityThreshold, settings.m_intesityThreshold, 0f, 1f);
+                settings.m_avgIntensityThreshold = EditorGUILayout.Slider(Styles.m_avgLightIntensityThreshold, settings.m_avgIntensityThreshold, 0f, 1f);
+                settings.m_accessabilityThreshold = EditorGUILayout.Slider(Styles.m_aoAccessibilityThreshold, settings.m_accessabilityThreshold, 0f, 1f);
+
+                EditorGUILayout.MinMaxSlider(Styles.m_surfaceLightThreshold, ref settings.m_surfaceLightThresholdMin, ref settings.m_surfaceLightThresholdMax, 0f, 1f);
+                EditorGUILayout.BeginHorizontal();
+                {
+                    GUILayout.Space(20);
+                    EditorGUILayout.BeginVertical();
+                    EditorGUILayout.BeginHorizontal();
+                    settings.m_surfaceLightThresholdMin = EditorGUILayout.FloatField(Styles.m_surfaceLightThresholdMin, settings.m_surfaceLightThresholdMin);
+                    settings.m_surfaceLightThresholdMax = EditorGUILayout.FloatField(Styles.m_surfaceLightThresholdMax, settings.m_surfaceLightThresholdMax);
+                    EditorGUILayout.EndHorizontal();
+                    EditorGUILayout.EndVertical();
+                }
+                EditorGUILayout.EndHorizontal();
+            }
+
+            EditorGUILayout.EndVertical();
+            EditorGUILayout.EndHorizontal();
+            EditorGUILayout.EndToggleGroup();
+            //*/
+
             settings.m_shadowsEnabled = EditorGUILayout.BeginToggleGroup(Styles.m_enableShadows, settings.m_shadowsEnabled);
             {
 

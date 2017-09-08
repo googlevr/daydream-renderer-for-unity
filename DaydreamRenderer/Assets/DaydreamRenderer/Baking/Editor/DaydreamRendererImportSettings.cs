@@ -24,20 +24,12 @@ namespace daydreamrenderer
     public class DaydreamRendererImportSettings
     {
         public const string kFirstRun = "key.firstrun";
-        public const string kDaydreamLightingSystem = "key.ddrlightingsystem";
-        public const string kAutoAddLighting = "key.scene.autoaddlighting";
 
         private static bool m_firstRun = true;
-        private static bool m_daydreamLightinSystemEnabled = true;
-        private static bool m_enableLightingComponentsAutoAdd = true;
-        private static bool m_bakingEnabledForScene = false;
 
         static DaydreamRendererImportSettings()
         {
             m_firstRun = EditorPrefs.GetBool(kFirstRun, m_firstRun);
-            m_daydreamLightinSystemEnabled = EditorPrefs.GetBool(kDaydreamLightingSystem, m_daydreamLightinSystemEnabled);
-            m_enableLightingComponentsAutoAdd = EditorPrefs.GetBool(kAutoAddLighting, m_enableLightingComponentsAutoAdd);
-            EditorPrefs.DeleteKey("key.bakingenabled.test");
         }
 
         public static bool FirstRun 
@@ -56,63 +48,5 @@ namespace daydreamrenderer
             }
         }
 
-        public static bool DaydreamLightinSystemEnabled {
-            get 
-            {
-                return m_daydreamLightinSystemEnabled;
-            }
-            set
-            {
-                if(m_daydreamLightinSystemEnabled != value)
-                {
-                    m_daydreamLightinSystemEnabled = value;
-                    EditorPrefs.SetBool(kDaydreamLightingSystem, m_daydreamLightinSystemEnabled);
-                }
-            }
-        }
-
-        public static bool EnableLightingComponentsAutoAdd {
-            get 
-            {
-                return m_enableLightingComponentsAutoAdd;
-            }
-            set 
-            {
-                if(m_enableLightingComponentsAutoAdd != value)
-                {
-                    m_enableLightingComponentsAutoAdd = value;
-                    EditorPrefs.SetBool(kAutoAddLighting, m_enableLightingComponentsAutoAdd);
-                }
-            }
-        }
-
-        public static bool BakingEnabledForScene
-        {
-            get 
-            {
-                m_bakingEnabledForScene = EditorPrefs.GetBool(GetSceneKey(), false);
-                return m_bakingEnabledForScene;
-            }
-            set 
-            {
-                if (m_bakingEnabledForScene != value)
-                {
-                    m_bakingEnabledForScene = value;
-                    string key = GetSceneKey();
-                    EditorPrefs.SetBool(key, m_bakingEnabledForScene);
-                }
-            }
-        }
-
-        private static string GetSceneKey()
-        { 
-            string name = SceneManager.GetActiveScene().name;
-            if (!string.IsNullOrEmpty(name))
-            {
-                return "key.bakingenabled." + SceneManager.GetActiveScene().name;
-            }
-
-            return "";
-        }
     }
 }

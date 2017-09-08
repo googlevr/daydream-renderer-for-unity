@@ -49,7 +49,7 @@ namespace daydreamrenderer
         {
             List<VertexElement> Definition { get; }
             int ElementCount { get; }
-            int VertexSize { get; }
+            int VertexSizeBytes { get; }
             int TotalComponentCount { get; }
         }
 
@@ -58,18 +58,18 @@ namespace daydreamrenderer
         {
             public int m_elType;
             public int m_count;
-            public int m_bytes;
+            public int m_bytesPerComponent;
 
             public VertexElement(VertexElementType elType, int count, int bytes)
             {
                 m_elType = (int)elType;
                 m_count = count;
-                m_bytes = bytes;
+                m_bytesPerComponent = bytes;
             }
 
             public int TotalByteSize
             {
-                get { return m_count * m_bytes; }
+                get { return m_count * m_bytesPerComponent; }
             }
 
             public int ComponentCount
@@ -79,7 +79,7 @@ namespace daydreamrenderer
 
             public int ComponentSizeBytes 
             {
-                get { return m_bytes; }
+                get { return m_bytesPerComponent; }
             }
 
             public VertexElementType GetElType 
@@ -330,8 +330,62 @@ namespace daydreamrenderer
             }
         }
 
+        public class Vertex : IVertex
+        {
+            int m_vertexSize = 0;
+            int m_totalComponentCount = 0;
+            List<VertexElement> m_definition;
+
+            public Vertex(List<VertexElement> definiton)
+            {
+                m_definition = definiton;
+            }
+
+            public List<VertexElement> Definition {
+                get {
+                    return m_definition;
+                }
+            }
+
+            public int ElementCount {
+                get {
+                    return m_definition.Count;
+                }
+            }
+
+            public int VertexSizeBytes {
+                get {
+                    if (m_vertexSize == 0)
+                    {
+                        var iter = m_definition.GetEnumerator();
+                        while (iter.MoveNext())
+                        {
+                            m_vertexSize += iter.Current.TotalByteSize;
+                        }
+                    }
+
+                    return m_vertexSize;
+                }
+            }
+
+            public int TotalComponentCount {
+                get {
+                    if (m_totalComponentCount == 0)
+                    {
+                        for (int i = 0, k = m_definition.Count; i < k; ++i)
+                        {
+                            m_totalComponentCount += m_definition[i].ComponentCount;
+                        }
+                    }
+
+                    return m_totalComponentCount;
+                }
+            }
+        }
+
         public class DefaultVertex : IVertex
         {
+            // default definition
             List<VertexElement> m_definition = new List<VertexElement>()
             {
                 {new VertexElement(VertexElementType.kPosition, 3, Marshal.SizeOf(typeof(float)))},
@@ -341,6 +395,70 @@ namespace daydreamrenderer
 
             int m_vertexSize = 0;
             int m_totalComponentCount = 0;
+
+            public static List<IVertex> BuildVertexFormats(List<MeshFilter> meshes)
+            {
+                return BuildVertexFormats(meshes.ToArray());
+            }
+
+            public static List<IVertex> BuildVertexFormats(MeshFilter[] meshes)
+            {
+                List<IVertex> vertexFormats = new List<IVertex>();
+
+                for (int i = 0, k = meshes.Length; i < k; ++i)
+                {
+                    // default vertex
+                    DefaultVertex vertex = new DefaultVertex();
+                    
+                    // add any additional elements
+                    if (meshes[i].sharedMesh.uv != null && meshes[i].sharedMesh.uv.Length > 0)
+                    {
+                        vertex.AddVertexElement(new VertexElement(VertexElementType.kUV0, 2, Marshal.SizeOf(typeof(float))));
+                    }
+                    if (meshes[i].sharedMesh.uv2 != null && meshes[i].sharedMesh.uv2.Length > 0)
+                    {
+                        vertex.AddVertexElement(new VertexElement(VertexElementType.kUV1, 4, Marshal.SizeOf(typeof(float))));
+                    }
+                    if (meshes[i].sharedMesh.uv3 != null && meshes[i].sharedMesh.uv3.Length > 0)
+                    {
+                        vertex.AddVertexElement(new VertexElement(VertexElementType.kUV2, 4, Marshal.SizeOf(typeof(float))));
+                    }
+                    if (meshes[i].sharedMesh.uv4 != null && meshes[i].sharedMesh.uv4.Length > 0)
+                    {
+                        vertex.AddVertexElement(new VertexElement(VertexElementType.kUV3, 4, Marshal.SizeOf(typeof(float))));
+                    }
+                    if (meshes[i].sharedMesh.colors != null && meshes[i].sharedMesh.colors.Length > 0)
+                    {
+                        vertex.AddVertexElement(new VertexElement(VertexElementType.kColor, 4, Marshal.SizeOf(typeof(float))));
+                    }
+
+                    vertexFormats.Add(vertex);
+                }
+
+                return vertexFormats;
+            }
+
+            public static List<VertexElement> AggregateVertexElements(List<IVertex> vertexList)
+            {
+                List<VertexElement> result = new List<VertexElement>();
+                for (int i = 0, k = vertexList.Count; i < k; ++i)
+                {
+                    result.AddRange(vertexList[i].Definition);
+                }
+
+                return result;
+            }
+
+            public void SetDefinition(List<VertexElement> defList, int rangeStart, int rangeEnd)
+            {
+                m_definition.Clear();
+                m_definition.AddRange(defList.GetRange(rangeStart, rangeEnd));
+            }
+
+            public void AddVertexElement(VertexElement element)
+            {
+                m_definition.Add(element);
+            }
 
             public List<VertexElement> Definition
             {
@@ -358,7 +476,7 @@ namespace daydreamrenderer
                 }
             }
 
-            public int VertexSize 
+            public int VertexSizeBytes 
             {
                 get 
                 {
@@ -367,7 +485,7 @@ namespace daydreamrenderer
                         var iter = m_definition.GetEnumerator();
                         while(iter.MoveNext())
                         {
-                            m_vertexSize += iter.Current.m_bytes;
+                            m_vertexSize += iter.Current.TotalByteSize;
                         }
                     }
 
@@ -422,11 +540,20 @@ namespace daydreamrenderer
 
         public List<MeshFilter> m_meshes;
         public List<Light> m_lights;
+        public List<IVertex> m_vertexFormats;
 
         // out handles
         public IntPtr[] m_outBasis0 = new IntPtr[] { IntPtr.Zero };
         public IntPtr[] m_outBasis1 = new IntPtr[] { IntPtr.Zero };
         public IntPtr[] m_outBasis2 = new IntPtr[] { IntPtr.Zero };
+
+        // out tessellation data
+        int[] m_outMeshCount = new int[1] { 0 };
+        IntPtr[] m_outVertCount = new IntPtr[1] { IntPtr.Zero };
+        IntPtr[] m_outTriCount = new IntPtr[1] { IntPtr.Zero };
+        IntPtr[] m_outMeshIndices = new IntPtr[1] { IntPtr.Zero };
+        IntPtr[] m_outVertData = new IntPtr[1] { IntPtr.Zero };
+        IntPtr[] m_outTriData = new IntPtr[1] { IntPtr.Zero };
 
         // pointers to data
         public IntPtr m_meshIdsPtr = IntPtr.Zero;
@@ -448,13 +575,13 @@ namespace daydreamrenderer
         public string[] m_sourcePaths;
 
         // vertex
-        public int m_vertexEementCount;
+        public int[] m_vertexElementCount;
         public VertexElement[] m_vertexDefinition;
 
         public MeshRenderer[] m_meshRenderers;
         public DaydreamVertexLighting[] m_lightBakers;
 
-        public void InitBakeContext(List<MeshFilter> meshes, List<Light> lights)
+        public void InitBakeContext(List<MeshFilter> meshes, List<Light> lights, bool useTessellatedMeshData = false)
         {
             BakeData.Instance().GetBakeSettings();
 
@@ -467,18 +594,24 @@ namespace daydreamrenderer
             m_lightBakers = new DaydreamVertexLighting[meshes.Count];
             for (int i = 0; i < meshes.Count; ++i)
             {
-                sourcePaths[i] = AssetDatabase.GetAssetPath(meshes[i].sharedMesh);
-                //guids[i] = AssetDatabase.AssetPathToGUID(sourcePaths[i]);
-                guids[i] = "" + meshes[i].GetUniqueId();
-                m_meshRenderers[i] = meshes[i].GetComponent<MeshRenderer>();
-
                 // check for daydream
+                m_meshRenderers[i] = meshes[i].GetComponent<MeshRenderer>();
                 DaydreamVertexLighting bakerComp = m_meshRenderers[i].GetComponent<DaydreamVertexLighting>();
                 if (bakerComp == null)
                 {
                     bakerComp = m_meshRenderers[i].gameObject.AddComponent<DaydreamVertexLighting>();
                 }
                 m_lightBakers[i] = bakerComp;
+
+                // replace mesh filter's mesh with the source mesh
+                if (!useTessellatedMeshData)
+                {
+                    meshes[i].sharedMesh = bakerComp.GetUntessellatedMesh();
+                }
+
+                sourcePaths[i] = AssetDatabase.GetAssetPath(meshes[i].sharedMesh);
+                //guids[i] = AssetDatabase.AssetPathToGUID(sourcePaths[i]);
+                guids[i] = "" + meshes[i].GetUniqueId();
             }
 
             m_meshes = meshes;
@@ -503,7 +636,7 @@ namespace daydreamrenderer
             BuildLightContext(meshArr, lights, this);
 
             // build the rest of the scene
-            BuildSceneContext(meshArr, this, new DefaultVertex());
+            BuildSceneContext(meshArr, this, null);
             
             // on finished
             m_callback = onFinished;
@@ -544,23 +677,101 @@ namespace daydreamrenderer
                 AssetDatabase.SaveAssets();
                 AssetDatabase.Refresh();
 
+                string msg = VertexBakerLib.Instance.GetLastError();
+                if(!string.IsNullOrEmpty(msg))
+                {
+                    Debug.Log(msg);
+                }
+
                 AssetDatabase.StartAssetEditing();
                 try
                 {
+
+                    // unpack  and update tessellated meshes
+                    Dictionary<int, int> tessellatedMeshIndices = new Dictionary<int, int>();
+                    
+                    int[] tessIndices = null;
+                    int[] tessVertCounts = null;
+                    int[] triCounts = null;
+                    if (m_outMeshCount[0] > 0 && m_outMeshIndices[0] != IntPtr.Zero)
+                    {
+                        tessIndices = VertexBakerLib.IntPtrToIntArray(m_outMeshIndices[0], m_outMeshCount[0]);
+
+                        for (int i = 0, k = tessIndices.Length; i < k; ++i)
+                        {
+                            tessellatedMeshIndices.Add(tessIndices[i], i);
+                        }
+
+                        tessVertCounts = VertexBakerLib.IntPtrToIntArray(m_outVertCount[0], m_outMeshCount[0]);
+                        triCounts = VertexBakerLib.IntPtrToIntArray(m_outTriCount[0], m_outMeshCount[0]);
+                    }
+
                     int ptrOffset = 0;
                     int meshOffset = 0;
+                    int vertDefOffset = 0;
                     for (int m = 0; m < m_meshes.Count; ++m)
                     {
-                        int count = m_vertCounts[m];
+                        int tessIndex = -1;
+                        if (tessellatedMeshIndices.ContainsKey(m))
+                        {
+                            tessIndex = tessellatedMeshIndices[m];
+                        }
+
+                        int count = tessIndex < 0 ? m_vertCounts[m] : tessVertCounts[tessIndex];
                         int floatCount = count * 3;
 
                         // the ID used to look up this mesh later
                         string objectId = "" + m_lightBakers[m].GetUniqueId();
+                        string sourceMeshName = m_lightBakers[m].GetSourcMesh().name;
 
                         m_lightBakers[m].m_currentContainer = meshContainer;
 
+                        //string colorBasisMesh = bakeSetId + "_" + objectId;
 
-                        Mesh outputMesh = meshContainer.m_list.Find(delegate (Mesh mesh)
+                        // was source mesh tessellated
+                        if (tessIndex >= 0)
+                        {
+                            string tessMeshName = bakeSetId + "_drtess_" + objectId;
+
+                            bool found = false;
+                            Mesh outputSourceMesh = meshContainer.m_list.Find(delegate (Mesh mesh)
+                            {
+                                if (mesh != null)
+                                {
+                                    found = true;
+                                    return mesh.name == tessMeshName;
+                                }
+                                return false;
+                            }) ?? new Mesh();
+                            
+                            CreateMeshFromTessellationData(this, m_vertexFormats[m]
+                                                           , m_outVertData[tessIndex]
+                                                           , tessVertCounts[tessIndex]
+                                                           , m_outTriData[tessIndex]
+                                                           , triCounts[tessIndex]
+                                                           , ref outputSourceMesh);
+
+                            outputSourceMesh.name = tessMeshName;
+
+                            if (!found)
+                            {
+                                BakeData.Instance().AddToMeshContainer(meshContainer, outputSourceMesh);
+                            }
+
+                            // mark lighting component as tessellated
+                            m_lightBakers[m].m_wasTessellated = true;
+                            if(!m_meshes[m].sharedMesh.name.Contains("_drtess_"))
+                            {
+                                // save original source mesh
+                                m_lightBakers[m].m_untessellatedMesh = m_meshes[m].sharedMesh;
+                            }
+
+                            m_meshes[m].sharedMesh = outputSourceMesh;
+                        }
+
+                        vertDefOffset += m_vertexFormats[m].ElementCount;
+
+                        Mesh outputColorBasisMesh = meshContainer.m_list.Find(delegate (Mesh mesh)
                             {
                                 if (mesh != null)
                                 {
@@ -569,7 +780,8 @@ namespace daydreamrenderer
                                 return false;
                             });
 
-                        if (outputMesh == null)
+                        
+                        if (outputColorBasisMesh == null)
                         {
 
                             if (m_lightBakers[m].VertexLighting != null)
@@ -594,9 +806,9 @@ namespace daydreamrenderer
                             }
 
                             // if no mesh exists for this target create it here
-                            outputMesh = new Mesh();
+                            outputColorBasisMesh = new Mesh();
 
-                            BakeData.Instance().AddToMeshContainer(meshContainer, outputMesh);
+                            BakeData.Instance().AddToMeshContainer(meshContainer, outputColorBasisMesh);
 
                             //meshContainer.m_list.Add(outputMesh);
                             //// add to the container asset
@@ -604,11 +816,10 @@ namespace daydreamrenderer
                             //AssetDatabase.AddObjectToAsset(outputMesh, outputPath + "/" + outputFileName + ".asset");
                         }
 
-                        outputMesh.name = bakeSetId + "_" + objectId;
+                        outputColorBasisMesh.name = bakeSetId + "_" + objectId;
 
                         // HACK: Work around to make Unity happy. If vertices are not found the additional vertex stream fails
-                        //outMeshes[m].vertices = m_meshes[m].sharedMesh.vertices;
-                        outputMesh.vertices = m_meshes[m].sharedMesh.vertices;
+                        outputColorBasisMesh.vertices = m_meshes[m].sharedMesh.vertices;
 
                         // 3 floats per vector
                         float[] rawData0 = new float[floatCount];
@@ -646,16 +857,16 @@ namespace daydreamrenderer
                         // this offset is target uv sets 1, 2, and 3 for data destination
                         const int uvOffset = 1;
 
-                        outputMesh.SetColors(colorList0);
-                        outputMesh.SetUVs(uvOffset + 1, colorList1);
-                        outputMesh.SetUVs(uvOffset + 2, colorList2);
+                        outputColorBasisMesh.SetColors(colorList0);
+                        outputColorBasisMesh.SetUVs(uvOffset + 1, colorList1);
+                        outputColorBasisMesh.SetUVs(uvOffset + 2, colorList2);
                         //outputMesh.UploadMeshData(true);
                         meshOffset += count;
 
                         EditorUtility.SetDirty(meshContainer);
-                        m_meshRenderers[m].additionalVertexStreams = outputMesh;
+                        m_meshRenderers[m].additionalVertexStreams = outputColorBasisMesh;
                         m_lightBakers[m].m_bakeSets = bakeSets;
-                        m_lightBakers[m].VertexLighting = outputMesh;
+                        m_lightBakers[m].VertexLighting = outputColorBasisMesh;
                         m_lightBakers[m].m_bakeId = objectId;
 
                         EditorUtility.SetDirty(m_lightBakers[m]);
@@ -741,6 +952,14 @@ namespace daydreamrenderer
             m_run = false;
         }
 
+        struct OutMesh
+        {
+            int m_triangleIndicesCount;
+            int m_vertexCount;
+            IntPtr m_vertexBuffer;
+            IntPtr m_triangleBuffer;
+        }
+
         #region _Bake
         #if DDR_RUNTIME_DLL_LINKING_
         private delegate
@@ -749,25 +968,39 @@ namespace daydreamrenderer
         private static extern
         #endif
         int _Bake(IntPtr meshIds, IntPtr vertexCounts, IntPtr triangleCountPtr, IntPtr matData
-            , [In, Out] IntPtr mesh, IntPtr triangles, [In, Out] IntPtr bakeOptions, IntPtr layers, int meshCount, int vertElementCount
+            , [In, Out] IntPtr mesh, IntPtr triangles, [In, Out] IntPtr bakeOptions, IntPtr layers, int meshCount, int[] vertElementCount
             , BakeContext.VertexElement[] vertexFormat, [In] string[] guids, [In] string[] sourcePaths, IntPtr settingsIndicesPtr, IntPtr[] settingsPtr
-            , [In, Out] IntPtr lightDataPtr, [In, Out] IntPtr lightsOptPtr, int lightCount, [In, Out] IntPtr[] outBasis0, [In, Out] IntPtr[] outBasis1, [In, Out] IntPtr[] outBasis2);
+            , [In, Out] IntPtr lightDataPtr, [In, Out] IntPtr lightsOptPtr, int lightCount, [In, Out] int[] outMeshCount, [In, Out] IntPtr[] outMeshIndices
+            , [In, Out] IntPtr[] outVertCounts, [In, Out] IntPtr[] outTriCounts, [In, Out] IntPtr[] outVertData, [In, Out] IntPtr[] outTriData
+            , [In, Out] IntPtr[] outBasis0, [In, Out] IntPtr[] outBasis1, [In, Out] IntPtr[] outBasis2);
         #endregion
         public void Bake()
         {
             try
             {
+                // reset out mesh count
+                m_outMeshCount[0] = 0;
+
+                IntPtr[] outVertData = new IntPtr[1] { IntPtr.Zero };
+                IntPtr[] outTriData = new IntPtr[1] { IntPtr.Zero };
+
 #if DDR_RUNTIME_DLL_LINKING_
                 m_result = VertexBakerLib.Instance.InvokeAsync<int, _Bake>(m_meshIdsPtr, m_vertexCountsPtr, m_triangleCountPtr, m_matDataPtr
-                , m_meshDataPtr, m_triangleDataPtr, m_bakeOptionsPtr, m_layerPtr, m_meshCount, m_vertexEementCount, m_vertexDefinition, m_guids
-                , m_sourcePaths, m_settingsIndicesPtr, m_settingsPtrs, m_lightsDataPtr, m_lightsOptPtr
-                , m_lightCount, m_outBasis0, m_outBasis1, m_outBasis2);
+                , m_meshDataPtr, m_triangleDataPtr, m_bakeOptionsPtr, m_layerPtr, m_meshCount, m_vertexElementCount, m_vertexDefinition, m_guids
+                , m_sourcePaths, m_settingsIndicesPtr, m_settingsPtrs, m_lightsDataPtr, m_lightsOptPtr, m_lightCount
+                , m_outMeshCount, m_outMeshIndices, m_outVertCount, m_outTriCount, outVertData, outTriData
+                , m_outBasis0, m_outBasis1, m_outBasis2);
 #else
                 m_result = _Bake(m_meshIdsPtr, m_vertexCountsPtr, m_triangleCountPtr, m_matDataPtr
-                , m_meshDataPtr, m_triangleDataPtr, m_bakeOptionsPtr, m_layerPtr, m_meshCount, m_vertexEementCount, m_vertexDefinition, m_guids
-                , m_sourcePaths, m_settingsIndicesPtr, m_settingsPtrs, m_lightsDataPtr, m_lightsOptPtr
-                , m_lightCount, m_outBasis0, m_outBasis1, m_outBasis2);
+                , m_meshDataPtr, m_triangleDataPtr, m_bakeOptionsPtr, m_layerPtr, m_meshCount, m_vertexElementCount, m_vertexDefinition, m_guids
+                , m_sourcePaths, m_settingsIndicesPtr, m_settingsPtrs, m_lightsDataPtr, m_lightsOptPtr, m_lightCount
+                , m_outMeshCount, m_outMeshIndices, m_outVertCount, m_outTriCount, outVertData, outTriData
+                , m_outBasis0, m_outBasis1, m_outBasis2);
 #endif
+                // convert pointer to list of pointers
+                m_outVertData = VertexBakerLib.IntPtrToIntPtrArray(outVertData[0], m_outMeshCount[0]);
+                m_outTriData = VertexBakerLib.IntPtrToIntPtrArray(outTriData[0], m_outMeshCount[0]);
+
                 m_run = false;
                 m_callback();
             }
@@ -796,6 +1029,28 @@ namespace daydreamrenderer
             }
             m_settingsPtrs = new IntPtr[0]; // clear
 
+            if(m_outMeshCount != null && m_outMeshCount.Length > 0)
+            {
+                for (int i = 0; i < m_outMeshCount[0]; i++)
+                {
+                    // free each stream of mesh data
+                    VertexBakerLib.Instance.Free(m_outVertData[i]);
+                    VertexBakerLib.Instance.Free(m_outTriData[i]);
+                }
+            }
+            if(m_outMeshIndices[0] != IntPtr.Zero)
+            {
+                VertexBakerLib.Instance.Free(m_outMeshIndices[0]);
+            }
+            if (m_outVertCount[0] != IntPtr.Zero)
+            {
+                VertexBakerLib.Instance.Free(m_outVertCount[0]);
+            }
+            if (m_outTriCount[0] != IntPtr.Zero)
+            {
+                VertexBakerLib.Instance.Free(m_outTriCount[0]);
+            }
+
             if (freeLights)
             {
                 VertexBakerLib.Instance.Free(m_lightsDataPtr);
@@ -811,7 +1066,19 @@ namespace daydreamrenderer
             m_meshDataPtr = IntPtr.Zero;
             m_triangleDataPtr = IntPtr.Zero;
             m_bakeOptionsPtr = IntPtr.Zero;
+            m_layerPtr = IntPtr.Zero;
             m_settingsIndicesPtr = IntPtr.Zero;
+            m_vertexElementCount = null;
+            m_vertexDefinition = null;
+
+            // reset
+            m_outMeshIndices = new IntPtr[1] { IntPtr.Zero };
+            m_outVertData = new IntPtr[1] { IntPtr.Zero };
+            m_outTriData = new IntPtr[1] { IntPtr.Zero };
+            m_outVertCount = new IntPtr[1] { IntPtr.Zero };
+            m_outTriCount = new IntPtr[1] { IntPtr.Zero };
+            m_outMeshCount[0] = 0;
+
         }
 
 
@@ -878,23 +1145,31 @@ namespace daydreamrenderer
         }
 
         // Helper method for marshaling mesh data
-        public static void BuildSceneContext(MeshFilter[] meshes, BakeContext ctx, IVertex vertex = null)
+        public static void BuildSceneContext(MeshFilter[] meshes, BakeContext ctx, IVertex vertexFormat)
         {
-            BuildSceneContext(meshes, null, null, ctx, vertex);
-        }
-
-        // Helper method for marshaling mesh data with sub mesh definition
-        public static void BuildSceneContext(MeshFilter[] meshes, List<List<int>> subMeshIndices, List<List<int>> subMeshTriangleIndices, BakeContext ctx, IVertex vertex = null)
-        {
-
-            if(vertex == null)
+            List<IVertex> formatList = null;
+            if (vertexFormat != null)
             {
-                vertex = new DefaultVertex();
+                formatList = new List<IVertex>(meshes.Length);
+                for(int i = 0, k = meshes.Length; i < k; ++i)
+                {
+                    formatList.Add(vertexFormat);
+                }
             }
 
-            ctx.m_vertexEementCount = vertex.ElementCount;
-            ctx.m_vertexDefinition = vertex.Definition.ToArray();
-            
+            BuildSceneContext(meshes, null, null, ctx, formatList);
+        }
+        
+        // Helper method for marshaling mesh data with sub mesh definition
+        public static void BuildSceneContext(MeshFilter[] meshes, List<List<int>> subMeshIndices, List<List<int>> subMeshTriangleIndices, BakeContext ctx, List<IVertex> vertexFormats = null)
+        {
+            if (vertexFormats == null || vertexFormats.Count == 0)
+            {
+                vertexFormats = DefaultVertex.BuildVertexFormats(meshes);
+            }
+
+            ctx.m_vertexFormats = vertexFormats;
+
             int totalVertCount = 0;
             int totalTriCount = 0;
             int meshCount = meshes.Length;
@@ -902,18 +1177,24 @@ namespace daydreamrenderer
             // extract mesh renderer options
             MeshRenderer[] renderer = ctx.m_meshRenderers;
 
-            // calculate mesh data size
+            int totalMeshDataSize = 0;
+            int vertCount = 0;
+            int[] vertexElementCount = new int[meshCount];
+
+            // calculate mesh data size and formats
             for (int i = 0; i < meshCount; ++i)
             {
                 // if a sub mesh is defined use it for vert count
                 if(subMeshIndices != null && subMeshIndices[i] != null)
                 {
-                    totalVertCount += subMeshIndices[i].Count;
+                    vertCount = subMeshIndices[i].Count;
                 }
                 else
                 {
-                    totalVertCount += meshes[i].sharedMesh.vertices.Length;
+                    vertCount = meshes[i].sharedMesh.vertices.Length;
                 }
+
+                totalVertCount += vertCount;
 
                 // if a sub mesh is defined use it for triangle index count
                 if (subMeshTriangleIndices != null && subMeshTriangleIndices[i] != null)
@@ -924,15 +1205,22 @@ namespace daydreamrenderer
                 {
                     totalTriCount += meshes[i].sharedMesh.triangles.Length;
                 }
+
+                vertexElementCount[i] = vertexFormats[i].ElementCount;
+
+                totalMeshDataSize += vertCount * SIZE_FLOAT * vertexFormats[i].TotalComponentCount;
             }
+            
+            ctx.m_vertexElementCount = vertexElementCount;
+            ctx.m_vertexDefinition = DefaultVertex.AggregateVertexElements(vertexFormats).ToArray();
 
             // data size
             const int triangleSize = 3;
             const int matSize = 16;
 
+            //int totalMeshDataSize = totalVertCount * SIZE_FLOAT * (vertex.VertexSize + meshCount);
             int totalMatrixDataSize = matSize * meshCount * SIZE_FLOAT;
             // mesh size depends on vertex definition
-            int totalMeshDataSize = totalVertCount * SIZE_FLOAT * (vertex.VertexSize + meshCount); 
             int totalTriangleDataSize = totalTriCount * triangleSize * SIZE_INT;
 
             VertexBakerLib instance = VertexBakerLib.Instance;
@@ -1071,12 +1359,12 @@ namespace daydreamrenderer
                 if (processSubMesh)
                 {
                     // build sub mesh
-                    BuildMesh(ctx, meshes[m].sharedMesh, vertex, subMeshIndices[m], ref meshDestOffset);
+                    BuildMesh(ctx, meshes[m].sharedMesh, vertexFormats[m], subMeshIndices[m], ref meshDestOffset);
                 }
                 else
                 {
                     // build entire mesh
-                    BuildMesh(ctx, meshes[m].sharedMesh, vertex, ref meshDestOffset);
+                    BuildMesh(ctx, meshes[m].sharedMesh, vertexFormats[m], ref meshDestOffset);
                 }
 
                 // triangles
@@ -1155,13 +1443,84 @@ namespace daydreamrenderer
             }
         }
 
+        static public void CreateMeshFromTessellationData(BakeContext baker, BakeContext.IVertex vertexFormat, IntPtr vertPtrData, int vertCount, IntPtr triPtrData, int triCount, ref Mesh outMesh)
+        {
+            if (vertCount == 0 || triCount == 0)
+            {
+                Debug.LogError("Tessellation output data, vert count " + vertCount + " tri count " + triCount);
+            }
+            else
+            {
+                float[] vertexData = VertexBakerLib.IntPtrToFloatArray(vertPtrData, vertCount * vertexFormat.TotalComponentCount);
+                int[] triData = VertexBakerLib.IntPtrToIntArray(triPtrData, triCount);
+                
+                // temp buffers for extracting mesh data
+                List<Vector2> vec2List = new List<Vector2>(vertCount);
+                List<Vector3> vec3List = new List<Vector3>(vertCount);
+                List<Vector4> vec4List = new List<Vector4>(vertCount);
+                List<Color> colorList = new List<Color>(vertCount);
+
+                int indexStart = 0;
+                for (int i = 0; i < vertexFormat.ElementCount; ++i)
+                {
+                    BakeContext.VertexElement el = vertexFormat.Definition[i];
+                    int componentCount = el.ComponentCount;
+                    // the number of floats to read from the buffer - read the actual vert count not the allocated
+                    int floatCount = vertCount * componentCount;
+
+                    switch (el.GetElType)
+                    {
+                        case BakeContext.VertexElementType.kPosition:
+                            VertexBakerLib.CopyFloatArrToVectorList(vertexData, indexStart, floatCount, ref vec3List);
+                            outMesh.SetVertices(vec3List);
+                            break;
+                        case BakeContext.VertexElementType.kNormal:
+                            VertexBakerLib.CopyFloatArrToVectorList(vertexData, indexStart, floatCount, ref vec3List);
+                            outMesh.SetNormals(vec3List);
+                            break;
+                        case BakeContext.VertexElementType.kUV0:
+                            VertexBakerLib.CopyFloatArrToVectorList(vertexData, indexStart, floatCount, ref vec2List);
+                            outMesh.SetUVs(0, vec2List);
+                            break;
+                        case BakeContext.VertexElementType.kTangent:
+                            VertexBakerLib.CopyFloatArrToVectorList(vertexData, indexStart, floatCount, ref vec4List);
+                            outMesh.SetTangents(vec4List);
+                            break;
+                        case BakeContext.VertexElementType.kColor:
+                            VertexBakerLib.CopyFloatArrToVectorList(vertexData, indexStart, floatCount, ref colorList);
+                            outMesh.SetColors(colorList);
+                            break;
+                        case BakeContext.VertexElementType.kUV1:
+                            VertexBakerLib.CopyFloatArrToVectorList(vertexData, indexStart, floatCount, ref vec4List);
+                            outMesh.SetUVs(1, vec4List);
+                            break;
+                        case BakeContext.VertexElementType.kUV2:
+                            VertexBakerLib.CopyFloatArrToVectorList(vertexData, indexStart, floatCount, ref vec4List);
+                            outMesh.SetUVs(2, vec4List);
+                            break;
+                        case BakeContext.VertexElementType.kUV3:
+                            VertexBakerLib.CopyFloatArrToVectorList(vertexData, indexStart, floatCount, ref vec4List);
+                            outMesh.SetUVs(3, vec4List);
+                            break;
+                        default:
+                            throw new ArgumentOutOfRangeException();
+                    }
+
+                    // increment position in the buffer by the full allocated vert count
+                    indexStart += vertCount * componentCount;
+                }
+
+                outMesh.triangles = triData;
+            }
+        }
+
         // helper method to copy vector array data in a somewhat generic fashion
-        static void CopyVectorArrayFromMesh(IntPtr dest, int destSize, int byteCount, Mesh mesh, VertexElement element)
+        public static void CopyVectorArrayFromMesh(IntPtr dest, int destSize, int byteCount, Mesh mesh, VertexElement element)
         {
             CopyVectorArrayFromMesh(dest, destSize, byteCount, mesh, element, null);
         }
 
-        static void CopyVectorArrayFromMesh(IntPtr dest, int destSize, int byteCount, Mesh mesh, VertexElement element, List<int> subMeshIndices)
+        public static void CopyVectorArrayFromMesh(IntPtr dest, int destSize, int byteCount, Mesh mesh, VertexElement element, List<int> subMeshIndices)
         {
             switch (element.ComponentCount)
             {

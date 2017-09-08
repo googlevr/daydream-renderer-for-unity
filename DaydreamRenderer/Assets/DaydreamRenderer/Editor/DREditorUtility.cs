@@ -29,6 +29,23 @@ namespace daydreamrenderer
             kIcon
         }
 
+        public struct RadioButtonOutput
+        {
+            public int m_selectedIndex;
+            public int m_dropDownSelected;
+        }
+
+        public static class Styles
+        {
+            // Lighting system advanced settings
+            public static GUIStyle dropDownStyle = new GUIStyle(EditorStyles.toolbarDropDown);
+            public static GUIStyle dropDownSelectedStyle = new GUIStyle(EditorStyles.toolbarDropDown);
+            static Styles()
+            {
+                dropDownStyle.fixedWidth = 16f;
+            }
+        }
+
         public static void DrawPreview(PreviewRenderUtility previewUtil, Material mat, Mesh mesh, PreviewType previewType, Vector2 scroll, ref Quaternion camRot)
         {
             const string uPosition = "dr_LightPosition";
@@ -119,6 +136,77 @@ namespace daydreamrenderer
                 mat.SetVector(uAtten, atten);
             }
         }
+
+        public static RadioButtonOutput DrawRadioButton(int currentIndex, GUIContent[] tabNames, GUIStyle unselectedStyle, GUIStyle selectedStyle, int indent = 20, int ellipisCutoff = 16, int buttonWidth = 125, bool[] dropDown = null)
+        {
+            RadioButtonOutput selections;
+            selections.m_selectedIndex = currentIndex;
+            selections.m_dropDownSelected = -1;
+
+            ellipisCutoff = Mathf.Max(6, ellipisCutoff);
+
+            for (int i = 0; i < tabNames.Length; ++i)
+            {
+                EditorGUILayout.BeginHorizontal();
+                GUILayout.Space(indent);
+
+                GUIContent tabNameContent = tabNames[i];
+                string name = tabNames[i].text;
+                if (name.Length > ellipisCutoff)
+                {
+                    name = tabNames[i].text.Substring(0, ellipisCutoff-3);
+                    name += "...";
+                    tabNameContent = new GUIContent(name, tabNames[i].tooltip);
+                }
+
+                if (GUILayout.Button(tabNameContent, currentIndex == i ? selectedStyle : unselectedStyle, GUILayout.Width(buttonWidth)))
+                {
+                    selections.m_selectedIndex = i;
+                }
+
+                // add drop down arrow
+                if(dropDown != null && dropDown.Length > i && dropDown[i])
+                {
+                    if (GUILayout.Button("", Styles.dropDownStyle))
+                    {
+                        selections.m_dropDownSelected = i;
+                    }
+                }
+
+                GUILayout.Space(3);
+                EditorGUILayout.EndHorizontal();
+            }
+
+            EditorGUILayout.BeginHorizontal();
+            EditorGUILayout.EndHorizontal();
+
+
+            return selections;
+        }
+
+        public static bool FlexibleHorizButton(string text, params GUILayoutOption[] options)
+        {
+            return FlexibleHorizButton(new GUIContent(text), GUI.skin.button, options);
+        }
+
+        public static bool FlexibleHorizButton(string text, GUIStyle style, params GUILayoutOption[] options)
+        {
+            return FlexibleHorizButton(new GUIContent(text), style, options);
+        }
+
+        public static bool FlexibleHorizButton(GUIContent text, GUIStyle style, params GUILayoutOption[] options)
+        {
+            GUILayout.BeginVertical();
+            GUILayout.BeginHorizontal();
+            GUILayout.FlexibleSpace();
+            bool result = GUILayout.Button(text, style, options);
+            GUILayout.FlexibleSpace();
+            GUILayout.EndHorizontal();
+            GUILayout.EndVertical();
+
+            return result;
+        }
+
     }
 }
 

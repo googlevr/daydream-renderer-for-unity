@@ -162,18 +162,22 @@ namespace daydreamrenderer
                 {
                     DaydreamMeshRenderer dmr = s_objectList[i];
 
-                    if (!dmr.m_didInit)
+                    if (dmr != null && !dmr.m_didInit)
                     {
                         dmr.DMRInit();
                     }
 #if UNITY_EDITOR
-                    if (!dmr.InEditorUpdate())
+                    if (dmr != null&& !dmr.InEditorUpdate())
                     {
                         continue;
                     }
 #endif
-                    dmr.UpdateStaticState();
-                    dmr.ApplyLighting(changed);
+                    if(dmr != null)
+                    {
+						dmr.UpdateStaticState();
+						dmr.ApplyLighting(changed);  
+                    }
+
                 }
             }
 

@@ -22,6 +22,8 @@ using UnityEngine;
 using System.Collections;
 using UnityEditor;
 using System;
+using System.Collections.Generic;
+using System.IO;
 
 namespace daydreamrenderer
 {
@@ -36,15 +38,25 @@ namespace daydreamrenderer
         // hold debug state information
         protected static VertexDebugState s_debugState = null;
 
-        protected static void Init(MeshFilter meshFilter)
+        protected static void Init(MeshFilter meshFilter, Mesh untessellatedMesh)
         {
-			if(meshFilter.sharedMesh == null)
-	        {
-	            Debug.LogWarning(meshFilter.gameObject.GetPath() + " is missing its mesh");
-	            return;
-	        }
+
+            if (!Directory.Exists(FBSConstants.BasePath + "/Cache/"))
+            {
+                Directory.CreateDirectory(FBSConstants.BasePath + "/Cache/");
+            }
+            if (!Directory.Exists(FBSConstants.BasePath + "/BVHCache/"))
+            {
+                Directory.CreateDirectory(FBSConstants.BasePath + "/BVHCache/");
+            }
+
+            if (meshFilter.sharedMesh == null)
+            {
+                Debug.LogWarning(meshFilter.gameObject.GetPath() + " is missing its source mesh");
+                return;
+            }
             s_debugState = BakeData.Instance().GetDebugState();
-            
+
 #if _DAYDREAM_STATIC_LIGHTING_DEBUG
             DateTime start = DateTime.Now;
 
@@ -58,6 +70,8 @@ namespace daydreamrenderer
                 s_bvhHandle = null;
 
                 BuildWorldVertices(meshFilter);
+
+                s_debugState.m_tessFaces = null;
             }
             
             TryLoadBVH(meshFilter);
@@ -68,20 +82,19 @@ namespace daydreamrenderer
             {
                 s_bvhWrapper = new BVHNode_FBWrapper();
             }
+
+            string sourceAssetPath = AssetDatabase.GetAssetPath(untessellatedMesh);
+            if (!string.IsNullOrEmpty(sourceAssetPath) && !Application.isPlaying)
+            {
+                Debug.LogWarning("Could not find asset " + untessellatedMesh.name + " the asset may be an instance. Some debug data may not be available.");
+            }
+
             string path = BVH.ConvertMeshIdToBVHPath(s_lastInstanceId);
             s_bvhWrapper.SetPath(path);
             s_bvhWrapper.Validate();
 
-            string sourceAssetPath = AssetDatabase.GetAssetPath(meshFilter.sharedMesh);
-            if (!string.IsNullOrEmpty(sourceAssetPath))
-            {
-                s_cacheWrapper.SetPath("" + s_lastInstanceId);
-                s_cacheWrapper.Validate();
-            }
-            else if (!Application.isPlaying)
-            {
-                Debug.LogError("Could not find asset " + meshFilter.sharedMesh.name + " the asset may be an instance. Some debug data may not be available.");
-            }
+            s_cacheWrapper.SetPath("" + s_lastInstanceId);
+            s_cacheWrapper.Validate();
 
             VertexBakerLib.Log("Debug setup time: " + (DateTime.Now - start).TotalSeconds + " seconds");
 #endif
@@ -118,6 +131,7 @@ namespace daydreamrenderer
 
         protected static void BuildWorldVertices(MeshFilter sourceMesh)
         {
+            s_debugState.m_triangles = sourceMesh.sharedMesh.triangles;
             s_debugState.m_worldVerPos = sourceMesh.sharedMesh.vertices;
             s_debugState.m_worldNormals = sourceMesh.sharedMesh.normals;
             for (int i = 0; i < s_debugState.m_worldNormals.Length; ++i)
@@ -125,6 +139,11 @@ namespace daydreamrenderer
                 s_debugState.m_worldVerPos[i] = sourceMesh.transform.TransformPoint(s_debugState.m_worldVerPos[i]);
                 s_debugState.m_worldNormals[i] = sourceMesh.transform.TransformVector(s_debugState.m_worldNormals[i]).normalized;
             }
+        }
+
+        protected static void BuildTessFaces(VertexBakerLib.BVHHandle bvh, MeshFilter sourceMesh, Mesh bakeData)
+        {
+            VertexBakerLib.Instance.FindTessellationTriangles(bvh, sourceMesh, bakeData, out s_debugState.m_tessFaces);
         }
 
     }

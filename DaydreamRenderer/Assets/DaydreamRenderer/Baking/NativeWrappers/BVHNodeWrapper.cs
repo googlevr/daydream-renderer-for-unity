@@ -34,10 +34,17 @@ namespace daydreamrenderer
 
     public struct SamplePatch
     {
+        public enum Version {
+            kSamplePatchV0 = 0,
+            kSamplePatchV1, // added faces to sample patch
+            kSamplePatchVCurrent = kSamplePatchV1
+        };
+        
         public Vector3 m_center;
         public Vector3 m_size;
         public Vector3 m_basis0;
         public Vector3 m_basis1;
+        public List<int> m_faces;
     }
 
     [System.Serializable]
@@ -68,6 +75,17 @@ namespace daydreamrenderer
             AssignVector3(patch.Basis0, ref sp.m_basis0);
             AssignVector3(patch.Basis1, ref sp.m_basis1);
 
+            if(patch.Version >= (int)SamplePatch.Version.kSamplePatchV1)
+            {
+                sp.m_faces = new List<int>(patch.FacesLength);
+                for (int i = 0; i < patch.FacesLength; ++i)
+                {
+                    sp.m_faces.Add(System.Convert.ToInt32(patch.GetFaces(i)));
+                }
+            }else
+            {
+                sp.m_faces = new List<int>();
+            }
         }
 
         public Vector3[] GetPatchCorners(int vertIndex)

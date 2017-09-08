@@ -37,7 +37,6 @@ namespace daydreamrenderer
 
         void OnEnable()
         {
-
         }
 
         public override void OnInspectorGUI()
@@ -46,7 +45,7 @@ namespace daydreamrenderer
 
             BakeSettings settings = source.m_bakeSettingsOverride;
 
-            DVLEditor.DrawShadowAndAOSettings(settings, source);
+            DVLEditor.DrawShadowAndAOSettings(settings, source, true);
 
             if (GUILayout.Button("Copy Global Settings"))
             {

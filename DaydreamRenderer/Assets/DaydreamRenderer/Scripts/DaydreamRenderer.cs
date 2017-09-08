@@ -42,6 +42,7 @@ public class DaydreamRenderer : MonoBehaviour
     public bool  m_fogSettings      = true;
     public bool  m_showFPS          = true;
     public int   m_maxShadowCasters = 1;
+    public bool  m_daydreamLighting = true;
 #if UNITY_EDITOR
     public bool m_uiEnabled = false;
 #endif
@@ -58,6 +59,8 @@ public class DaydreamRenderer : MonoBehaviour
     public bool m_heightFogEnable = false;
     public int  m_fogMode = FogMode.Linear;
     public bool m_enableEnlighten = false;
+    public bool m_enableManualLightingComponents = false;
+    public bool m_enableStaticLightingForScene = false;
 
     //////////////////////
     // Enumerations/Types
@@ -776,8 +779,14 @@ public class DaydreamRenderer : MonoBehaviour
                 m_casterLayers[i] = casters[i].layer;
                 casters[i].layer  = m_shadowLayer;
 
-                Material material = casters[i].GetComponent<Renderer>().sharedMaterial;
-                material.EnableKeyword("BUILD_SHADOWMAP");
+                Material[] materials = casters[i].GetComponent<Renderer>().sharedMaterials;
+                if(materials != null && materials.Length > 0)
+                {
+                    for(int m = 0; m < materials.Length; ++m)
+                    {
+                        materials[m].EnableKeyword("BUILD_SHADOWMAP");
+                    }
+                }
             }
         }
         else
@@ -786,8 +795,14 @@ public class DaydreamRenderer : MonoBehaviour
             {
                 casters[i].layer = m_casterLayers[i];
 
-                Material material = casters[i].GetComponent<Renderer>().sharedMaterial;
-                material.DisableKeyword("BUILD_SHADOWMAP");
+                Material[] materials = casters[i].GetComponent<Renderer>().sharedMaterials;
+                if (materials != null && materials.Length > 0)
+                {
+                    for (int m = 0; m < materials.Length; ++m)
+                    {
+                        materials[m].DisableKeyword("BUILD_SHADOWMAP");
+                    }
+                }
             }
         }
     }
@@ -811,11 +826,15 @@ public class DaydreamRenderer : MonoBehaviour
             Renderer renderer = receivers[i].GetComponent<Renderer>();
             if (renderer == null) { continue; }
 
-            Material material = receivers[i].GetComponent<Renderer>().sharedMaterial;
+            Material[] material = receivers[i].GetComponent<Renderer>().sharedMaterials;
             if (material == null) { continue; }
 
-            material.EnableKeyword(enable);
-            material.DisableKeyword(disable);
+            int mcount = material.Length;
+            for (int m=0; m<mcount; m++)
+            {
+                material[m].EnableKeyword(enable);
+                material[m].DisableKeyword(disable);
+            }
         }
 
         m_shadowType = type;
@@ -841,8 +860,14 @@ public class DaydreamRenderer : MonoBehaviour
                 m_receiverLayers[i] = receivers[i].layer;
                 receivers[i].layer = m_shadowReceiverLayer;
 
-                Material material = receivers[i].GetComponent<Renderer>().sharedMaterial;
-                material.EnableKeyword("REC_SHADOWMAP");
+                Material[] material = receivers[i].GetComponent<Renderer>().sharedMaterials;
+                if (material == null) { continue; }
+
+                int mcount = material.Length;
+                for (int m=0; m<mcount; m++)
+                {
+                    material[m].EnableKeyword("REC_SHADOWMAP");
+                }
             }
         }
         else
@@ -851,8 +876,14 @@ public class DaydreamRenderer : MonoBehaviour
             {
                 receivers[i].layer = m_receiverLayers[i];
 
-                Material material = receivers[i].GetComponent<Renderer>().sharedMaterial;
-                material.DisableKeyword("REC_SHADOWMAP");
+                Material[] material = receivers[i].GetComponent<Renderer>().sharedMaterials;
+                if (material == null) { continue; }
+
+                int mcount = material.Length;
+                for (int m=0; m<mcount; m++)
+                {
+                    material[m].DisableKeyword("REC_SHADOWMAP");
+                }
             }
         }
     }
